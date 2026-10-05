@@ -6,12 +6,14 @@ WORKDIR /app
 # Enable pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy project files
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
+# Copy all project configuration and source trees
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json tsconfig.json ./
 COPY lib ./lib
 COPY artifacts ./artifacts
+COPY attached_assets ./attached_assets
+COPY scripts ./scripts
 
-# Install dependencies dynamically for Linux
+# Install dependencies for Linux environment
 RUN pnpm install --no-frozen-lockfile
 
 # Build frontend and backend
