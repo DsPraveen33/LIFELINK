@@ -4,15 +4,9 @@ import { createServer } from "node:http";
 import { Server as SocketServer } from "socket.io";
 import { attachRealtime } from "./lib/realtime";
 import { seedLifelinkData } from "./lib/seed";
+import { initDb } from "@workspace/db";
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
+const rawPort = process.env["PORT"] || "5000";
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
@@ -23,16 +17,24 @@ const httpServer = createServer(app);
 const socketServer = new SocketServer(httpServer, {
   path: "/api/socket.io",
   serveClient: false,
+  cors: {
+    origin: "*",
+    credentials: true,
+  },
 });
 attachRealtime(socketServer);
 
-void seedLifelinkData()
-  .then(() => {
+async function startServer(): Promise<void> {
+  try {
+    await initDb();
+    await seedLifelinkData();
     httpServer.listen(port, () => {
       logger.info({ port }, "LIFELINK API and Socket.IO server listening");
     });
-  })
-  .catch((error) => {
+  } catch (error) {
     logger.error({ error }, "LIFELINK startup failed");
     process.exit(1);
-  });
+  }
+}
+
+void startServer();

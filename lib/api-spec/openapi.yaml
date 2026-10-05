@@ -502,7 +502,7 @@ components:
         id: { type: integer }
         name: { type: string }
         email: { type: string }
-        role: { type: string, enum: [USER, DRIVER, OPERATOR] }
+        role: { type: string, enum: [USER, DRIVER, OPERATOR, ADMIN] }
         phone: { type: ["string", "null"] }
       required: [id, name, email, role, phone]
     RegisterInput:

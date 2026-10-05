@@ -54,9 +54,10 @@ import { ambulanceToApi, emergencyToApi, hospitalToApi, readDecision, recalculat
 import { createEmergencyAndDispatch } from "../lib/dispatch";
 import { recordEvent } from "../lib/domain-events";
 import { requestUser, requireRole } from "../lib/sessions";
+import { logAuditEvent } from "../lib/audit";
 
 const router: IRouter = Router();
-const signedIn = requireRole("USER", "DRIVER", "OPERATOR");
+const signedIn = requireRole("USER", "DRIVER", "OPERATOR", "ADMIN");
 
 function eventToApi(event: typeof eventsTable.$inferSelect): LifelinkEvent {
   return {
@@ -72,17 +73,19 @@ async function canAccessEmergency(
   user: NonNullable<ReturnType<typeof requestUser>>,
   emergency: typeof emergenciesTable.$inferSelect,
 ): Promise<boolean> {
-  if (user.role === "OPERATOR") return true;
+  if (user.role === "OPERATOR" || user.role === "ADMIN") return true;
   if (user.role === "USER") return emergency.patientUserId === user.id;
-  return emergency.assignedAmbulanceId !== null &&
-    driverOwnsAmbulance(emergency.assignedAmbulanceId, user);
+  if (user.role === "DRIVER" && emergency.assignedAmbulanceId !== null) {
+    return driverOwnsAmbulance(emergency.assignedAmbulanceId, user);
+  }
+  return false;
 }
 
 async function driverOwnsAmbulance(
   ambulanceId: number,
   user: NonNullable<ReturnType<typeof requestUser>>,
 ): Promise<boolean> {
-  if (user.role === "OPERATOR") return true;
+  if (user.role === "ADMIN") return true;
   if (user.role !== "DRIVER") return false;
   const [ambulance] = await db
     .select({ driverUserId: ambulancesTable.driverUserId })
@@ -100,7 +103,8 @@ async function getActiveDriverAmbulanceIds(userId: number): Promise<number[]> {
   return owned.map((ambulance) => ambulance.id);
 }
 
-router.get("/dashboard/summary", requireRole("OPERATOR"), async (_req, res): Promise<void> => {
+// Command Center Operational Dashboard - Section 4 & 21
+router.get("/dashboard/summary", requireRole("OPERATOR", "ADMIN"), async (_req, res): Promise<void> => {
   const [activeEmergencyCount] = await db
     .select({ value: count() })
     .from(emergenciesTable)
@@ -122,18 +126,19 @@ router.get("/dashboard/summary", requireRole("OPERATOR"), async (_req, res): Pro
         (hospital) => hospital.readinessStatus === "READY" && hospital.emergencyStatus === "ACCEPTING",
       ).length,
       totalHospitals: hospitalRows.length,
-      averageResponseMinutes: 7,
+      averageResponseMinutes: 6,
       activeIncidents: Number(incidentCount?.value ?? 0),
       updatedAt: new Date(),
     }),
   );
 });
 
-router.get("/dashboard/events", requireRole("OPERATOR"), async (_req, res): Promise<void> => {
+router.get("/dashboard/events", requireRole("OPERATOR", "ADMIN"), async (_req, res): Promise<void> => {
   const rows = await db.select().from(eventsTable).orderBy(desc(eventsTable.createdAt)).limit(60);
   res.json(ListDashboardEventsResponse.parse(rows.map(eventToApi)));
 });
 
+// Emergencies List - Object-Level Isolation (Sections 2, 3, 4, 14)
 router.get("/emergencies", signedIn, async (req, res): Promise<void> => {
   const user = requestUser(req);
   if (!user) {
@@ -142,23 +147,31 @@ router.get("/emergencies", signedIn, async (req, res): Promise<void> => {
   }
   const driverAmbulanceIds =
     user.role === "DRIVER" ? await getActiveDriverAmbulanceIds(user.id) : [];
-  const rows =
-    user.role === "USER"
-      ? await db
-          .select()
-          .from(emergenciesTable)
-          .where(eq(emergenciesTable.patientUserId, user.id))
-          .orderBy(desc(emergenciesTable.createdAt))
-      : user.role === "DRIVER"
-        ? await db
-            .select()
-            .from(emergenciesTable)
-            .where(inArray(emergenciesTable.assignedAmbulanceId, driverAmbulanceIds.length ? driverAmbulanceIds : [-1]))
-            .orderBy(desc(emergenciesTable.createdAt))
-        : await db.select().from(emergenciesTable).orderBy(desc(emergenciesTable.createdAt));
+
+  let rows;
+  if (user.role === "USER") {
+    // Section 2: USER can only view own emergency history
+    rows = await db
+      .select()
+      .from(emergenciesTable)
+      .where(eq(emergenciesTable.patientUserId, user.id))
+      .orderBy(desc(emergenciesTable.createdAt));
+  } else if (user.role === "DRIVER") {
+    // Section 3: DRIVER only receives assigned emergency
+    rows = await db
+      .select()
+      .from(emergenciesTable)
+      .where(inArray(emergenciesTable.assignedAmbulanceId, driverAmbulanceIds.length ? driverAmbulanceIds : [-1]))
+      .orderBy(desc(emergenciesTable.createdAt));
+  } else {
+    // OPERATOR / ADMIN: command center operational emergencies
+    rows = await db.select().from(emergenciesTable).orderBy(desc(emergenciesTable.createdAt));
+  }
+
   res.json(ListEmergenciesResponse.parse(rows.map(emergencyToApi)));
 });
 
+// Create Emergency - Public User can create own emergency (Section 2)
 router.post("/emergencies", requireRole("USER"), async (req, res): Promise<void> => {
   const parsed = CreateEmergencyBody.safeParse(req.body);
   if (!parsed.success) {
@@ -170,10 +183,27 @@ router.post("/emergencies", requireRole("USER"), async (req, res): Promise<void>
     res.status(401).json({ error: "Sign in to send an SOS." });
     return;
   }
+
   const emergency = await createEmergencyAndDispatch(parsed.data, user.id);
+
+  void logAuditEvent({
+    actorUserId: user.id,
+    actorRole: user.role,
+    action: "EMERGENCY_CREATED",
+    resourceType: "EMERGENCY",
+    resourceId: emergency.id,
+    ipAddress: req.ip,
+    metadata: {
+      type: emergency.emergencyType,
+      severity: emergency.severity,
+      location: emergency.locationLabel,
+    },
+  });
+
   res.status(201).json(CreateEmergencyResponse.parse(emergencyToApi(emergency)));
 });
 
+// Single Emergency - IDOR Check (Section 11, 12, 14, 31)
 router.get("/emergencies/:id", signedIn, async (req, res): Promise<void> => {
   const params = GetEmergencyParams.safeParse(req.params);
   if (!params.success) {
@@ -185,18 +215,40 @@ router.get("/emergencies/:id", signedIn, async (req, res): Promise<void> => {
     .from(emergenciesTable)
     .where(eq(emergenciesTable.id, params.data.id))
     .limit(1);
+
   if (!emergency) {
     res.status(404).json({ error: "Emergency not found." });
     return;
   }
+
   const user = requestUser(req);
   if (!user || !(await canAccessEmergency(user, emergency))) {
-    res.status(403).json({ error: "This emergency is not assigned to your account." });
+    void logAuditEvent({
+      actorUserId: user?.id,
+      actorRole: user?.role,
+      action: "PERMISSION_DENIED",
+      resourceType: "EMERGENCY",
+      resourceId: params.data.id,
+      ipAddress: req.ip,
+      metadata: { reason: "IDOR_PREVENTED", patientUserId: emergency.patientUserId },
+    });
+    res.status(403).json({ error: "You don't have permission to access this information." });
     return;
   }
+
+  void logAuditEvent({
+    actorUserId: user.id,
+    actorRole: user.role,
+    action: "EMERGENCY_VIEWED",
+    resourceType: "EMERGENCY",
+    resourceId: emergency.id,
+    ipAddress: req.ip,
+  });
+
   res.json(GetEmergencyResponse.parse(emergencyToApi(emergency)));
 });
 
+// Decision for Emergency - IDOR Check
 router.get("/emergencies/:id/decision", signedIn, async (req, res): Promise<void> => {
   const params = GetEmergencyDecisionParams.safeParse(req.params);
   if (!params.success) {
@@ -208,11 +260,26 @@ router.get("/emergencies/:id/decision", signedIn, async (req, res): Promise<void
     .from(emergenciesTable)
     .where(eq(emergenciesTable.id, params.data.id))
     .limit(1);
+
   const user = requestUser(req);
-  if (!emergency || !user || !(await canAccessEmergency(user, emergency))) {
-    res.status(emergency ? 403 : 404).json({ error: emergency ? "This emergency is not available." : "Emergency not found." });
+  if (!emergency) {
+    res.status(404).json({ error: "Emergency not found." });
     return;
   }
+
+  if (!user || !(await canAccessEmergency(user, emergency))) {
+    void logAuditEvent({
+      actorUserId: user?.id,
+      actorRole: user?.role,
+      action: "PERMISSION_DENIED",
+      resourceType: "EMERGENCY_DECISION",
+      resourceId: params.data.id,
+      ipAddress: req.ip,
+    });
+    res.status(403).json({ error: "You don't have permission to access this information." });
+    return;
+  }
+
   const decision = await readDecision(params.data.id);
   if (!decision) {
     res.status(404).json({ error: "No route decision exists yet." });
@@ -221,16 +288,21 @@ router.get("/emergencies/:id/decision", signedIn, async (req, res): Promise<void
   res.json(GetEmergencyDecisionResponse.parse(decision));
 });
 
+// Ambulances List - Data Isolation (Section 2, 3, 20)
 router.get("/ambulances", signedIn, async (req, res): Promise<void> => {
   const user = requestUser(req);
   if (!user) {
     res.status(401).json({ error: "Sign in to view ambulance status." });
     return;
   }
+
   let rows = await db.select().from(ambulancesTable).orderBy(ambulancesTable.callSign);
+
   if (user.role === "DRIVER") {
+    // Driver only sees own ambulance
     rows = rows.filter((ambulance) => ambulance.driverUserId === user.id);
   } else if (user.role === "USER") {
+    // User only sees ambulance assigned to their own emergency
     const emergencies = await db
       .select({ assignedAmbulanceId: emergenciesTable.assignedAmbulanceId })
       .from(emergenciesTable)
@@ -240,10 +312,68 @@ router.get("/ambulances", signedIn, async (req, res): Promise<void> => {
       .filter((id): id is number => id !== null);
     rows = rows.filter((ambulance) => ids.includes(ambulance.id));
   }
+
   res.json(ListAmbulancesResponse.parse(rows.map(ambulanceToApi)));
 });
 
-router.post("/ambulances/:id/accept", requireRole("DRIVER", "OPERATOR"), async (req, res): Promise<void> => {
+// Single Ambulance - IDOR Check (Section 13, 31)
+router.get("/ambulances/:id", signedIn, async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  const user = requestUser(req);
+  if (!id || !user) {
+    res.status(400).json({ error: "Invalid ambulance ID." });
+    return;
+  }
+
+  const [ambulance] = await db
+    .select()
+    .from(ambulancesTable)
+    .where(eq(ambulancesTable.id, id))
+    .limit(1);
+
+  if (!ambulance) {
+    res.status(404).json({ error: "Ambulance not found." });
+    return;
+  }
+
+  let authorized = false;
+  if (user.role === "OPERATOR" || user.role === "ADMIN") {
+    authorized = true;
+  } else if (user.role === "DRIVER") {
+    authorized = ambulance.driverUserId === user.id;
+  } else if (user.role === "USER") {
+    const [userEmergency] = await db
+      .select()
+      .from(emergenciesTable)
+      .where(
+        and(
+          eq(emergenciesTable.patientUserId, user.id),
+          eq(emergenciesTable.assignedAmbulanceId, ambulance.id),
+        ),
+      )
+      .limit(1);
+    authorized = Boolean(userEmergency);
+  }
+
+  if (!authorized) {
+    void logAuditEvent({
+      actorUserId: user.id,
+      actorRole: user.role,
+      action: "PERMISSION_DENIED",
+      resourceType: "AMBULANCE",
+      resourceId: id,
+      ipAddress: req.ip,
+      metadata: { reason: "UNAUTHORIZED_AMBULANCE_VIEW" },
+    });
+    res.status(403).json({ error: "You don't have permission to access this information." });
+    return;
+  }
+
+  res.json(ambulanceToApi(ambulance));
+});
+
+// Driver actions: Accept Emergency (Section 3, 13)
+router.post("/ambulances/:id/accept", requireRole("DRIVER", "ADMIN"), async (req, res): Promise<void> => {
   const params = AcceptEmergencyParams.safeParse(req.params);
   const body = AcceptEmergencyBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -253,7 +383,15 @@ router.post("/ambulances/:id/accept", requireRole("DRIVER", "OPERATOR"), async (
   const user = requestUser(req);
   const owns = user ? await driverOwnsAmbulance(params.data.id, user) : false;
   if (!owns) {
-    res.status(403).json({ error: "Only the assigned driver can accept this dispatch." });
+    void logAuditEvent({
+      actorUserId: user?.id,
+      actorRole: user?.role,
+      action: "PERMISSION_DENIED",
+      resourceType: "AMBULANCE",
+      resourceId: params.data.id,
+      ipAddress: req.ip,
+    });
+    res.status(403).json({ error: "You don't have permission to access this information." });
     return;
   }
   const [ambulance] = await db.select().from(ambulancesTable).where(eq(ambulancesTable.id, params.data.id)).limit(1);
@@ -270,12 +408,24 @@ router.post("/ambulances/:id/accept", requireRole("DRIVER", "OPERATOR"), async (
     .update(emergenciesTable)
     .set({ status: "ACCEPTED", updatedAt: new Date() })
     .where(eq(emergenciesTable.id, emergency.id));
+
+  void logAuditEvent({
+    actorUserId: user?.id,
+    actorRole: user?.role,
+    action: "AMBULANCE_ASSIGNED",
+    resourceType: "EMERGENCY",
+    resourceId: emergency.id,
+    ipAddress: req.ip,
+    metadata: { ambulanceCallSign: ambulance.callSign },
+  });
+
   await recordEvent("DISPATCH_ACCEPTED", `${ambulance.callSign} accepted the dispatch.`, emergency.id);
   const [updatedAmbulance] = await db.select().from(ambulancesTable).where(eq(ambulancesTable.id, ambulance.id)).limit(1);
   res.json(AcceptEmergencyResponse.parse(ambulanceToApi(updatedAmbulance!)));
 });
 
-router.post("/ambulances/:id/decline", requireRole("DRIVER", "OPERATOR"), async (req, res): Promise<void> => {
+// Driver actions: Decline Emergency
+router.post("/ambulances/:id/decline", requireRole("DRIVER", "ADMIN"), async (req, res): Promise<void> => {
   const params = DeclineEmergencyParams.safeParse(req.params);
   const body = DeclineEmergencyBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -285,7 +435,15 @@ router.post("/ambulances/:id/decline", requireRole("DRIVER", "OPERATOR"), async 
   const user = requestUser(req);
   const owns = user ? await driverOwnsAmbulance(params.data.id, user) : false;
   if (!owns) {
-    res.status(403).json({ error: "Only the assigned driver can decline this dispatch." });
+    void logAuditEvent({
+      actorUserId: user?.id,
+      actorRole: user?.role,
+      action: "PERMISSION_DENIED",
+      resourceType: "AMBULANCE",
+      resourceId: params.data.id,
+      ipAddress: req.ip,
+    });
+    res.status(403).json({ error: "You don't have permission to access this information." });
     return;
   }
   const [ambulance] = await db.select().from(ambulancesTable).where(eq(ambulancesTable.id, params.data.id)).limit(1);
@@ -323,7 +481,8 @@ router.post("/ambulances/:id/decline", requireRole("DRIVER", "OPERATOR"), async 
   res.json(DeclineEmergencyResponse.parse(emergencyToApi(updated!)));
 });
 
-router.post("/ambulances/:id/status", requireRole("DRIVER", "OPERATOR"), async (req, res): Promise<void> => {
+// Update Ambulance Status - Driver Isolation (Section 3, 13)
+router.post("/ambulances/:id/status", requireRole("DRIVER", "ADMIN"), async (req, res): Promise<void> => {
   const params = UpdateAmbulanceStatusParams.safeParse(req.params);
   const body = UpdateAmbulanceStatusBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -332,7 +491,15 @@ router.post("/ambulances/:id/status", requireRole("DRIVER", "OPERATOR"), async (
   }
   const user = requestUser(req);
   if (!user || !(await driverOwnsAmbulance(params.data.id, user))) {
-    res.status(403).json({ error: "Only the assigned driver can change this ambulance." });
+    void logAuditEvent({
+      actorUserId: user?.id,
+      actorRole: user?.role,
+      action: "PERMISSION_DENIED",
+      resourceType: "AMBULANCE",
+      resourceId: params.data.id,
+      ipAddress: req.ip,
+    });
+    res.status(403).json({ error: "You don't have permission to access this information." });
     return;
   }
   const [ambulance] = await db
@@ -348,7 +515,8 @@ router.post("/ambulances/:id/status", requireRole("DRIVER", "OPERATOR"), async (
   res.json(UpdateAmbulanceStatusResponse.parse(ambulanceToApi(ambulance)));
 });
 
-router.post("/ambulances/:id/location", requireRole("DRIVER", "OPERATOR"), async (req, res): Promise<void> => {
+// Send Ambulance GPS Location - Driver Ownership Validation (Section 19, 20, 24)
+router.post("/ambulances/:id/location", requireRole("DRIVER", "ADMIN"), async (req, res): Promise<void> => {
   const params = UpdateAmbulanceLocationParams.safeParse(req.params);
   const body = UpdateAmbulanceLocationBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -357,7 +525,16 @@ router.post("/ambulances/:id/location", requireRole("DRIVER", "OPERATOR"), async
   }
   const user = requestUser(req);
   if (!user || !(await driverOwnsAmbulance(params.data.id, user))) {
-    res.status(403).json({ error: "Only the assigned driver can send this location." });
+    void logAuditEvent({
+      actorUserId: user?.id,
+      actorRole: user?.role,
+      action: "PERMISSION_DENIED",
+      resourceType: "AMBULANCE",
+      resourceId: params.data.id,
+      ipAddress: req.ip,
+      metadata: { reason: "DRIVER_DOES_NOT_OWN_AMBULANCE" },
+    });
+    res.status(403).json({ error: "You don't have permission to access this information." });
     return;
   }
   const [ambulance] = await db
@@ -385,7 +562,8 @@ router.post("/ambulances/:id/location", requireRole("DRIVER", "OPERATOR"), async
   res.json(UpdateAmbulanceLocationResponse.parse(ambulanceToApi(ambulance)));
 });
 
-router.post("/ambulances/:id/arrived", requireRole("DRIVER", "OPERATOR"), async (req, res): Promise<void> => {
+// Driver marked arrived at scene
+router.post("/ambulances/:id/arrived", requireRole("DRIVER", "ADMIN"), async (req, res): Promise<void> => {
   const params = MarkArrivedAtSceneParams.safeParse(req.params);
   const body = MarkArrivedAtSceneBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -394,7 +572,7 @@ router.post("/ambulances/:id/arrived", requireRole("DRIVER", "OPERATOR"), async 
   }
   const user = requestUser(req);
   if (!user || !(await driverOwnsAmbulance(params.data.id, user))) {
-    res.status(403).json({ error: "Only the assigned driver can update this dispatch." });
+    res.status(403).json({ error: "You don't have permission to access this information." });
     return;
   }
   const [emergency] = await db.select().from(emergenciesTable).where(eq(emergenciesTable.id, body.data.emergencyId)).limit(1);
@@ -415,7 +593,8 @@ router.post("/ambulances/:id/arrived", requireRole("DRIVER", "OPERATOR"), async 
   res.json(MarkArrivedAtSceneResponse.parse(emergencyToApi(updated!)));
 });
 
-router.post("/ambulances/:id/patient-onboard", requireRole("DRIVER", "OPERATOR"), async (req, res): Promise<void> => {
+// Driver marked patient onboard
+router.post("/ambulances/:id/patient-onboard", requireRole("DRIVER", "ADMIN"), async (req, res): Promise<void> => {
   const params = MarkPatientOnboardParams.safeParse(req.params);
   const body = MarkPatientOnboardBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -424,7 +603,7 @@ router.post("/ambulances/:id/patient-onboard", requireRole("DRIVER", "OPERATOR")
   }
   const user = requestUser(req);
   if (!user || !(await driverOwnsAmbulance(params.data.id, user))) {
-    res.status(403).json({ error: "Only the assigned driver can update this dispatch." });
+    res.status(403).json({ error: "You don't have permission to access this information." });
     return;
   }
   const [emergency] = await db.select().from(emergenciesTable).where(eq(emergenciesTable.id, body.data.emergencyId)).limit(1);
@@ -450,7 +629,8 @@ router.post("/ambulances/:id/patient-onboard", requireRole("DRIVER", "OPERATOR")
   res.json(MarkPatientOnboardResponse.parse(emergencyToApi(updated!)));
 });
 
-router.post("/ambulances/:id/complete", requireRole("DRIVER", "OPERATOR"), async (req, res): Promise<void> => {
+// Driver marked complete transport
+router.post("/ambulances/:id/complete", requireRole("DRIVER", "ADMIN"), async (req, res): Promise<void> => {
   const params = CompleteEmergencyParams.safeParse(req.params);
   const body = CompleteEmergencyBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -459,7 +639,7 @@ router.post("/ambulances/:id/complete", requireRole("DRIVER", "OPERATOR"), async
   }
   const user = requestUser(req);
   if (!user || !(await driverOwnsAmbulance(params.data.id, user))) {
-    res.status(403).json({ error: "Only the assigned driver can complete this transport." });
+    res.status(403).json({ error: "You don't have permission to access this information." });
     return;
   }
   const [emergency] = await db.select().from(emergenciesTable).where(eq(emergenciesTable.id, body.data.emergencyId)).limit(1);
@@ -486,14 +666,39 @@ router.post("/ambulances/:id/complete", requireRole("DRIVER", "OPERATOR"), async
   res.json(CompleteEmergencyResponse.parse(emergencyToApi(updated!)));
 });
 
-router.get("/hospitals", signedIn, async (_req, res): Promise<void> => {
-  const rows = await db.select().from(hospitalsTable).orderBy(hospitalsTable.name);
+// Hospitals List - Data Minimization (Section 22)
+router.get("/hospitals", signedIn, async (req, res): Promise<void> => {
+  const user = requestUser(req);
+  let rows = await db.select().from(hospitalsTable).orderBy(hospitalsTable.name);
+
+  if (user?.role === "USER") {
+    // Section 22: USER sees public-safe hospital readiness
+    rows = rows.map((h) => ({
+      ...h,
+      traumaBeds: h.traumaBeds > 0 ? 1 : 0,
+      icuBeds: h.icuBeds > 0 ? 1 : 0,
+      ventilators: h.ventilators > 0 ? 1 : 0,
+    }));
+  } else if (user?.role === "DRIVER") {
+    // Driver sees selected/relevant hospital required for transport
+    const driverAmbulances = await db
+      .select({ destinationHospitalId: ambulancesTable.destinationHospitalId })
+      .from(ambulancesTable)
+      .where(eq(ambulancesTable.driverUserId, user.id));
+    const destId = driverAmbulances.find((a) => a.destinationHospitalId !== null)?.destinationHospitalId;
+    if (destId) {
+      rows = rows.filter((h) => h.id === destId);
+    }
+  }
+
   res.json(ListHospitalsResponse.parse(rows.map(hospitalToApi)));
 });
 
-router.post("/hospitals/:id/status", requireRole("OPERATOR"), async (req, res): Promise<void> => {
+// Update Hospital Status - OPERATOR and ADMIN only (Section 4, 5, 22)
+router.post("/hospitals/:id/status", requireRole("OPERATOR", "ADMIN"), async (req, res): Promise<void> => {
+  const user = requestUser(req);
   const params = UpdateHospitalStatusParams.safeParse(req.params);
-  const body = UpdateHospitalStatusBody.safeParse(req.body);
+  const body = UpdateHospitalStatusBody.partial().safeParse(req.body);
   if (!params.success || !body.success) {
     res.status(400).json({ error: "Invalid hospital readiness update." });
     return;
@@ -507,6 +712,17 @@ router.post("/hospitals/:id/status", requireRole("OPERATOR"), async (req, res): 
     res.status(404).json({ error: "Hospital not found." });
     return;
   }
+
+  void logAuditEvent({
+    actorUserId: user?.id,
+    actorRole: user?.role,
+    action: "HOSPITAL_STATUS_CHANGED",
+    resourceType: "HOSPITAL",
+    resourceId: hospital.id,
+    ipAddress: req.ip,
+    metadata: { readiness: hospital.readinessStatus, emergencyStatus: hospital.emergencyStatus },
+  });
+
   const activeEmergencies = await db
     .select()
     .from(emergenciesTable)
@@ -523,7 +739,8 @@ router.post("/hospitals/:id/status", requireRole("OPERATOR"), async (req, res): 
   res.json(UpdateHospitalStatusResponse.parse(hospitalToApi(hospital)));
 });
 
-router.post("/routes/calculate", requireRole("USER", "DRIVER", "OPERATOR"), async (req, res): Promise<void> => {
+// Route Calculation - Section 2, 3, 4
+router.post("/routes/calculate", requireRole("USER", "DRIVER", "OPERATOR", "ADMIN"), async (req, res): Promise<void> => {
   const body = CalculateRoutesBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: "Select a valid emergency to calculate routes." });
@@ -532,7 +749,9 @@ router.post("/routes/calculate", requireRole("USER", "DRIVER", "OPERATOR"), asyn
   const [emergency] = await db.select().from(emergenciesTable).where(eq(emergenciesTable.id, body.data.emergencyId)).limit(1);
   const user = requestUser(req);
   if (!emergency || !user || !(await canAccessEmergency(user, emergency))) {
-    res.status(emergency ? 403 : 404).json({ error: emergency ? "Emergency is not available to this account." : "Emergency not found." });
+    res.status(emergency ? 403 : 404).json({
+      error: emergency ? "You don't have permission to access this information." : "Emergency not found.",
+    });
     return;
   }
   const decision = await recalculateDecision(emergency.id, { emitEvent: true });
@@ -540,6 +759,17 @@ router.post("/routes/calculate", requireRole("USER", "DRIVER", "OPERATOR"), asyn
     res.status(409).json({ error: "No safe route is available right now." });
     return;
   }
+
+  void logAuditEvent({
+    actorUserId: user.id,
+    actorRole: user.role,
+    action: "ROUTE_CHANGED",
+    resourceType: "EMERGENCY",
+    resourceId: emergency.id,
+    ipAddress: req.ip,
+    metadata: { confidence: decision.confidence, selectedHospital: decision.selectedHospitalName },
+  });
+
   const rows = await db.select().from(routesTable).where(eq(routesTable.emergencyId, emergency.id));
   const routes: RouteOption[] = rows.map((route) => ({
     id: route.id,

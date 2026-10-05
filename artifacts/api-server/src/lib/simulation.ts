@@ -17,14 +17,13 @@ import { createEmergencyAndDispatch } from "./dispatch";
 import { recalculateDecision } from "./decision-engine";
 import { recordEvent } from "./domain-events";
 import { seedLifelinkData } from "./seed";
+import { simulationConfig } from "../simulation/config";
 
-const INITIAL_AMBULANCE_LOCATIONS = [
-  { callSign: "AMB-01", latitude: 12.9717, longitude: 77.601 },
-  { callSign: "AMB-02", latitude: 12.9698, longitude: 77.6041 },
-  { callSign: "AMB-03", latitude: 12.9827, longitude: 77.611 },
-  { callSign: "AMB-04", latitude: 12.9554, longitude: 77.615 },
-  { callSign: "AMB-05", latitude: 12.988, longitude: 77.594 },
-];
+const INITIAL_AMBULANCE_LOCATIONS = simulationConfig.demoAmbulances.map((amb) => ({
+  callSign: amb.callSign,
+  latitude: amb.latitude,
+  longitude: amb.longitude,
+}));
 
 function eventToApi(event: typeof eventsTable.$inferSelect): LifelinkEvent {
   return {
@@ -51,25 +50,19 @@ async function clearOperationalData(): Promise<void> {
   await db.delete(roadIncidentsTable);
   await db.delete(trafficConditionsTable);
 
-  for (const [name, readinessStatus, emergencyStatus, traumaBeds, icuBeds, ventilators, waitMinutes] of [
-    ["City Trauma Center A", "FULL", "DIVERTING", 0, 0, 0, 42],
-    ["City Trauma Center B", "READY", "ACCEPTING", 4, 3, 2, 8],
-    ["Metro Care Hospital C", "READY", "ACCEPTING", 3, 2, 2, 12],
-    ["St. Martha's Medical Center D", "BUSY", "LIMITED", 1, 1, 1, 24],
-    ["Eastside General Hospital E", "READY", "ACCEPTING", 2, 2, 1, 16],
-  ] as const) {
+  for (const hospital of simulationConfig.demoHospitals) {
     await db
       .update(hospitalsTable)
       .set({
-        readinessStatus,
-        emergencyStatus,
-        traumaBeds,
-        icuBeds,
-        ventilators,
-        waitMinutes,
+        readinessStatus: hospital.readinessStatus,
+        emergencyStatus: hospital.emergencyStatus,
+        traumaBeds: hospital.traumaBeds,
+        icuBeds: hospital.icuBeds,
+        ventilators: hospital.ventilators,
+        waitMinutes: hospital.waitMinutes,
         updatedAt: new Date(),
       })
-      .where(eq(hospitalsTable.name, name));
+      .where(eq(hospitalsTable.name, hospital.name));
   }
 
   for (const location of INITIAL_AMBULANCE_LOCATIONS) {
@@ -100,7 +93,7 @@ export async function resetSimulation(): Promise<SimulationResult> {
     .limit(1);
   const events = await latestEvents();
   return {
-    message: "Demo data reset. Sample emergencies, traffic and hospital readiness are restored.",
+    message: "Tirupati demo simulation reset. Sample emergencies, traffic corridors, and hospital readiness restored.",
     emergencyId: firstEmergency?.id ?? null,
     events,
   };
@@ -127,18 +120,18 @@ async function setHospitalFull(hospitalName: string, emergencyId?: number): Prom
 
 async function addRouteAAccident(emergencyId?: number): Promise<void> {
   await db.insert(roadIncidentsTable).values({
-    type: "ROUTE_A_ACCIDENT",
-    latitude: 12.9782,
-    longitude: 77.6104,
-    roadName: "Route A access road",
+    type: "ACCIDENT",
+    latitude: 13.635,
+    longitude: 79.406,
+    roadName: "Alipiri Bypass Road",
     severity: "CRITICAL",
     description: "New accident blocks the selected response corridor.",
     active: true,
   });
-  await recordEvent("ACCIDENT_DETECTED", "Accident detected on Route A. Recalculating the route.", emergencyId ?? null);
+  await recordEvent("ACCIDENT_DETECTED", "Accident detected on Route A corridor in Tirupati. Recalculating route.", emergencyId ?? null);
   if (emergencyId) {
     await recalculateDecision(emergencyId, { emitEvent: true });
-    await recordEvent("REROUTE_TRIGGERED", "Route A is blocked; the best open alternative has been selected.", emergencyId);
+    await recordEvent("REROUTE_TRIGGERED", "Route A blocked; rerouting to best open alternative.", emergencyId);
   }
 }
 
@@ -158,49 +151,72 @@ export async function performSimulationAction(
   input: SimulationActionInput,
   patientUserId: number | null,
 ): Promise<SimulationResult> {
-  let emergency = await activeEmergency(input.emergencyId ?? undefined);
+  const emergency = await activeEmergency(input.emergencyId ?? undefined);
   switch (input.action) {
     case "CREATE_EMERGENCY": {
+      const demo = simulationConfig.demoEmergencies[0];
       const created = await createEmergencyAndDispatch(
         {
-          patientName: "Demo Patient",
-          emergencyType: "Critical Road Accident",
-          severity: "CRITICAL",
-          latitude: 12.9756,
-          longitude: 77.6066,
-          locationLabel: "DEMO • M.G. Road, Central Bengaluru",
-          requiredCapabilities: ["TRAUMA", "ICU"],
+          patientName: demo.patientName,
+          emergencyType: demo.emergencyType,
+          severity: demo.severity,
+          latitude: demo.latitude,
+          longitude: demo.longitude,
+          locationLabel: demo.locationLabel,
+          requiredCapabilities: demo.requiredCapabilities,
         },
-        patientUserId,
+        patientUserId ?? null,
       );
-      emergency = created;
+      const events = await latestEvents();
+      return {
+        message: "New SOS emergency created for Tirupati transit corridor.",
+        emergencyId: created.id,
+        events,
+      };
+    }
+    case "DISPATCH_AMBULANCE": {
+      if (!emergency) break;
+      const [available] = await db
+        .select()
+        .from(ambulancesTable)
+        .where(eq(ambulancesTable.status, "AVAILABLE"))
+        .limit(1);
+      if (available) {
+        await db
+          .update(ambulancesTable)
+          .set({ status: "EN_ROUTE", currentEmergencyId: emergency.id, lastUpdated: new Date() })
+          .where(eq(ambulancesTable.id, available.id));
+        await db
+          .update(emergenciesTable)
+          .set({ assignedAmbulanceId: available.id, status: "DISPATCHED", updatedAt: new Date() })
+          .where(eq(emergenciesTable.id, emergency.id));
+        await recordEvent("AMBULANCE_DISPATCHED", `${available.callSign} assigned to emergency.`, emergency.id);
+        await recalculateDecision(emergency.id, { emitEvent: true });
+      }
       break;
     }
-    case "DISPATCH_AMBULANCE":
     case "START_JOURNEY": {
-      if (!emergency) break;
+      if (!emergency?.assignedAmbulanceId) break;
+      await db
+        .update(ambulancesTable)
+        .set({ status: "EN_ROUTE", lastUpdated: new Date() })
+        .where(eq(ambulancesTable.id, emergency.assignedAmbulanceId));
       await db
         .update(emergenciesTable)
         .set({ status: "EN_ROUTE", updatedAt: new Date() })
         .where(eq(emergenciesTable.id, emergency.id));
-      if (emergency.assignedAmbulanceId) {
-        await db
-          .update(ambulancesTable)
-          .set({ status: "EN_ROUTE", lastUpdated: new Date() })
-          .where(eq(ambulancesTable.id, emergency.assignedAmbulanceId));
-      }
-      await recordEvent("JOURNEY_STARTED", "Driver accepted dispatch and is en route to the patient.", emergency.id);
+      await recordEvent("JOURNEY_STARTED", "Ambulance en route to emergency scene.", emergency.id);
       break;
     }
     case "INJECT_TRAFFIC": {
       await db.insert(trafficConditionsTable).values({
-        roadSegment: "Route A",
-        speedKph: 8,
-        expectedSpeedKph: 40,
+        roadSegment: "Alipiri Bypass Road",
+        speedKph: 15,
+        expectedSpeedKph: 45,
         congestionLevel: "HEAVY",
         trend: "WORSENING",
       });
-      await recordEvent("TRAFFIC_UPDATED", "Heavy traffic injected on Route A.", emergency?.id ?? null);
+      await recordEvent("TRAFFIC_UPDATED", "Heavy pilgrim traffic reported on Alipiri corridor.", emergency?.id ?? null);
       if (emergency) await recalculateDecision(emergency.id, { emitEvent: true });
       break;
     }
@@ -210,7 +226,7 @@ export async function performSimulationAction(
       break;
     }
     case "HOSPITAL_B_FULL": {
-      await setHospitalFull("City Trauma Center B", emergency?.id);
+      await setHospitalFull("SVRR Government General Hospital (Ruia)", emergency?.id);
       break;
     }
     case "HOSPITAL_C_READY": {
@@ -219,13 +235,13 @@ export async function performSimulationAction(
         .set({
           readinessStatus: "READY",
           emergencyStatus: "ACCEPTING",
-          traumaBeds: 3,
-          icuBeds: 2,
-          ventilators: 2,
+          traumaBeds: 5,
+          icuBeds: 4,
+          ventilators: 3,
           updatedAt: new Date(),
         })
-        .where(eq(hospitalsTable.name, "Metro Care Hospital C"));
-      await recordEvent("HOSPITAL_STATUS_CHANGED", "Metro Care Hospital C is ready to receive patients.", emergency?.id ?? null);
+        .where(eq(hospitalsTable.name, "Apollo Hospital Tirupati"));
+      await recordEvent("HOSPITAL_STATUS_CHANGED", "Apollo Hospital Tirupati ready with cardiac specialty team.", emergency?.id ?? null);
       if (emergency) await recalculateDecision(emergency.id, { emitEvent: true });
       break;
     }
@@ -245,13 +261,13 @@ export async function performSimulationAction(
           lastUpdated: new Date(),
         })
         .where(eq(ambulancesTable.id, emergency.assignedAmbulanceId));
-      await recordEvent("EMERGENCY_COMPLETED", "Hospital handoff complete. Emergency closed.", emergency.id);
+      await recordEvent("EMERGENCY_COMPLETED", "Hospital triage handoff completed in Tirupati. Emergency closed.", emergency.id);
       break;
     }
   }
   const events = await latestEvents();
   return {
-    message: `${input.action.replaceAll("_", " ")} completed using the LIFELINK simulation engine.`,
+    message: `${input.action.replaceAll("_", " ")} executed successfully via LIFELINK simulation engine.`,
     emergencyId: emergency?.id ?? null,
     events,
   };
@@ -266,6 +282,7 @@ export async function runFullDemo(patientUserId: number | null): Promise<Simulat
   await db.delete(eventsTable);
   await db.delete(hospitalPreAlertsTable);
   await db.delete(emergenciesTable);
+
   for (const location of INITIAL_AMBULANCE_LOCATIONS) {
     await db
       .update(ambulancesTable)
@@ -284,87 +301,67 @@ export async function runFullDemo(patientUserId: number | null): Promise<Simulat
   const [ambulance] = await db
     .select()
     .from(ambulancesTable)
-    .where(eq(ambulancesTable.callSign, "AMB-02"))
+    .where(eq(ambulancesTable.callSign, "AMB-01"))
     .limit(1);
-  const [hospitalA] = await db
+  const [svims] = await db
     .select()
     .from(hospitalsTable)
-    .where(eq(hospitalsTable.name, "City Trauma Center A"))
+    .where(eq(hospitalsTable.name, "SVIMS Super Specialty Hospital"))
     .limit(1);
-  const [hospitalB] = await db
+  const [ruia] = await db
     .select()
     .from(hospitalsTable)
-    .where(eq(hospitalsTable.name, "City Trauma Center B"))
+    .where(eq(hospitalsTable.name, "SVRR Government General Hospital (Ruia)"))
     .limit(1);
 
-  if (!ambulance || !hospitalA || !hospitalB) {
+  if (!ambulance || !svims || !ruia) {
     throw new Error("Demo prerequisites were not seeded.");
   }
-
-  await db
-    .update(hospitalsTable)
-    .set({
-      readinessStatus: "FULL",
-      emergencyStatus: "DIVERTING",
-      traumaBeds: 0,
-      icuBeds: 0,
-      ventilators: 0,
-      updatedAt: new Date(),
-    })
-    .where(eq(hospitalsTable.id, hospitalA.id));
-  await db
-    .update(hospitalsTable)
-    .set({
-      readinessStatus: "READY",
-      emergencyStatus: "ACCEPTING",
-      traumaBeds: 4,
-      icuBeds: 3,
-      ventilators: 2,
-      updatedAt: new Date(),
-    })
-    .where(eq(hospitalsTable.id, hospitalB.id));
 
   const [demoEmergency] = await db
     .insert(emergenciesTable)
     .values({
       patientUserId,
-      patientName: "Demo Patient",
-      emergencyType: "Critical Road Accident",
+      patientName: "Asha Verma",
+      emergencyType: "CARDIAC_ARREST",
       severity: "CRITICAL",
       status: "TRANSPORTING",
-      latitude: 12.9756,
-      longitude: 77.6066,
-      locationLabel: "DEMO • M.G. Road, Central Bengaluru",
-      requiredCapabilities: ["TRAUMA", "ICU"],
+      latitude: 13.639,
+      longitude: 79.4035,
+      locationLabel: "DEMO • Alipiri Pilgrim Transit Center, Tirupati",
+      requiredCapabilities: ["CARDIAC", "ICU", "VENTILATOR"],
       assignedAmbulanceId: ambulance.id,
-      selectedHospitalId: hospitalB.id,
-      etaMinutes: 12,
+      selectedHospitalId: svims.id,
+      etaMinutes: 6,
     })
     .returning();
+
   if (!demoEmergency) throw new Error("Could not create the demo emergency.");
+
   await db
     .update(ambulancesTable)
     .set({
       status: "TRANSPORTING",
       currentEmergencyId: demoEmergency.id,
-      destinationHospitalId: hospitalB.id,
-      etaMinutes: 12,
+      destinationHospitalId: svims.id,
+      etaMinutes: 6,
       lastUpdated: new Date(),
     })
     .where(eq(ambulancesTable.id, ambulance.id));
 
-  await recordEvent("SOS_RECEIVED", "Critical road accident SOS received.", demoEmergency.id);
-  await recordEvent("AMBULANCE_ASSIGNED", "AMB-02 assigned to the demo emergency.", demoEmergency.id);
-  await recordEvent("ROUTE_SELECTED", "Route A selected: 12 min, 2.4 km.", demoEmergency.id);
-  await recordEvent("HOSPITAL_SELECTED", "City Trauma Center B selected; Center A is full.", demoEmergency.id);
-  await recordEvent("TRANSPORT_STARTED", "Patient onboard. Transport to City Trauma Center B started.", demoEmergency.id);
-  await recalculateDecision(demoEmergency.id, { preferredHospitalId: hospitalB.id, emitEvent: false });
-  await addRouteAAccident(demoEmergency.id);
-  await setHospitalFull("City Trauma Center B", demoEmergency.id);
+  await recordEvent("SOS_RECEIVED", "Cardiac arrest SOS received from Alipiri transit center.", demoEmergency.id);
+  await recordEvent("AMBULANCE_ASSIGNED", "AMB-01 (ALS) assigned to patient Asha Verma.", demoEmergency.id);
+  await recordEvent("ROUTE_SELECTED", "Route A (SVIMS Express) selected: 6 min ETA.", demoEmergency.id);
+  await recordEvent("HOSPITAL_SELECTED", "SVIMS Super Specialty Hospital selected (ICU and Cardiac ready).", demoEmergency.id);
+  await recordEvent("TRANSPORT_STARTED", "Patient onboard AMB-01. Transport to SVIMS in progress.", demoEmergency.id);
 
-  await recordEvent("DEMO_READY", "Demo scenario complete: Route B and Metro Care Hospital C are recommended.", demoEmergency.id);
+  await recalculateDecision(demoEmergency.id, { preferredHospitalId: svims.id, emitEvent: false });
+  await addRouteAAccident(demoEmergency.id);
+  await setHospitalFull("SVIMS Super Specialty Hospital", demoEmergency.id);
+
+  await recordEvent("DEMO_READY", "Tirupati demo ready: Rerouted to SVRR Hospital (Ruia) with open corridor.", demoEmergency.id);
   return {
-    message: "Demo complete. Route A was blocked, routing switched to B, and the receiving hospital changed to Metro Care Hospital C.",
+    message: "Tirupati demo complete: SVIMS became full & Route A blocked; LIFELINK dynamic AI rerouted to Ruia Government General Hospital via Route B.",
     emergencyId: demoEmergency.id,
     events: await latestEvents(),
   };

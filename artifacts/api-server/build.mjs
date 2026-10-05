@@ -118,6 +118,16 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  try {
+    const { copyFile } = await import("node:fs/promises");
+    const pgliteDist = path.dirname(globalThis.require.resolve("@electric-sql/pglite"));
+    await copyFile(path.resolve(pgliteDist, "pglite.data"), path.resolve(distDir, "pglite.data"));
+    await copyFile(path.resolve(pgliteDist, "pglite.wasm"), path.resolve(distDir, "pglite.wasm"));
+    await copyFile(path.resolve(pgliteDist, "initdb.wasm"), path.resolve(distDir, "initdb.wasm"));
+  } catch (err) {
+    console.warn("Notice: pglite assets copy skipped", err);
+  }
 }
 
 buildAll().catch((err) => {

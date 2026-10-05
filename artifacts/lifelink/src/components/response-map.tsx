@@ -1,6 +1,7 @@
 import { MapContainer, TileLayer, Marker, CircleMarker, Polyline, Popup, ZoomControl } from 'react-leaflet';
 import { divIcon, type LatLngExpression } from 'leaflet';
 import type { Ambulance, Emergency, Hospital } from '@workspace/api-client-react';
+import { simulationConfig } from '@/simulation/config';
 
 interface ResponseMapProps {
   className?: string;
@@ -19,7 +20,7 @@ const iconFor = (kind: 'emergency' | 'ambulance' | 'hospital', label: string) =>
 });
 
 export function ResponseMap({ className = '', emergency, ambulances = [], hospitals = [], selectedHospital, route, mode = 'command' }: ResponseMapProps) {
-  const center: LatLngExpression = emergency ? [emergency.latitude, emergency.longitude] : [12.9716, 77.5946];
+  const center: LatLngExpression = emergency ? [emergency.latitude, emergency.longitude] : [simulationConfig.centerLatitude, simulationConfig.centerLongitude];
   const relevantAmbulances = mode === 'patient' ? ambulances.slice(0, 1) : ambulances;
   const routePoints: LatLngExpression[] = route?.filter(p => p.length >= 2).map(p => Math.abs(p[0]) > 90 ? [p[1], p[0]] as LatLngExpression : [p[0], p[1]] as LatLngExpression) || [];
   if (emergency && !routePoints.length) routePoints.push([emergency.latitude, emergency.longitude]);

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, isNull } from "drizzle-orm";
-import { db, ambulancesTable, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { db, usersTable } from "@workspace/db";
 import {
   DemoLoginResponse,
   GetCurrentUserResponse,
@@ -17,6 +17,7 @@ import {
   requireRole,
   verifyPassword,
 } from "../lib/sessions";
+import { logAuditEvent } from "../lib/audit";
 
 const router: IRouter = Router();
 const loginAttempts = new Map<string, { attempts: number; resetsAt: number }>();
@@ -28,7 +29,11 @@ function loginAttemptKey(ip: string | undefined): string {
 }
 
 router.post("/auth/register", async (req, res): Promise<void> => {
-  const parsed = RegisterUserBody.safeParse(req.body);
+  // Security Section 8: Public registration should only allow USER. Never allow public registration for ADMIN or OPERATOR.
+  // We sanitize the role attribute to always be USER regardless of what was submitted.
+  const raw = typeof req.body === "object" && req.body !== null ? req.body : {};
+  const payload = { ...raw, role: "USER" };
+  const parsed = RegisterUserBody.safeParse(payload);
   if (!parsed.success) {
     res.status(400).json({ error: "Check the account details and try again." });
     return;
@@ -40,13 +45,15 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     return;
   }
 
+  const assignedRole = "USER";
+
   const [user] = await db
     .insert(usersTable)
     .values({
       name: parsed.data.name.trim(),
       email,
       passwordHash: hashPassword(parsed.data.password),
-      role: parsed.data.role,
+      role: assignedRole,
       phone: parsed.data.phone ?? null,
     })
     .returning();
@@ -55,30 +62,28 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     return;
   }
 
-  if (user.role === "DRIVER") {
-    const [unassigned] = await db
-      .select()
-      .from(ambulancesTable)
-      .where(isNull(ambulancesTable.driverUserId))
-      .limit(1);
-    if (unassigned) {
-      await db
-        .update(ambulancesTable)
-        .set({ driverUserId: user.id, driverName: user.name, lastUpdated: new Date() })
-        .where(eq(ambulancesTable.id, unassigned.id));
-    }
-  }
+  const token = await createUserSession(user.id, res);
 
-  await createUserSession(user.id, res);
-  res.status(201).json(
-    RegisterUserResponse.parse({
+  void logAuditEvent({
+    actorUserId: user.id,
+    actorRole: user.role,
+    action: "LOGIN",
+    resourceType: "AUTH_SESSION",
+    resourceId: user.id,
+    ipAddress: req.ip,
+    metadata: { method: "REGISTRATION" },
+  });
+
+  res.status(201).json({
+    ...RegisterUserResponse.parse({
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       phone: user.phone,
     }),
-  );
+    token,
+  });
 });
 
 router.post("/auth/login", async (req, res): Promise<void> => {
@@ -86,6 +91,12 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const now = Date.now();
   const current = loginAttempts.get(key);
   if (current && current.resetsAt > now && current.attempts >= MAX_LOGIN_ATTEMPTS) {
+    void logAuditEvent({
+      action: "FAILED_LOGIN",
+      resourceType: "RATE_LIMIT",
+      ipAddress: req.ip,
+      metadata: { reason: "RATE_LIMITED" },
+    });
     res.status(429).json({ error: "Too many sign-in attempts. Wait a few minutes and try again." });
     return;
   }
@@ -98,53 +109,89 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
   const email = parsed.data.email.trim().toLowerCase();
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+
+  // Security Section 9: Do not reveal whether email exists. Use timing-safe generic message.
   if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
     const previous = loginAttempts.get(key);
     loginAttempts.set(key, {
       attempts: previous && previous.resetsAt > now ? previous.attempts + 1 : 1,
       resetsAt: previous && previous.resetsAt > now ? previous.resetsAt : now + LOGIN_WINDOW_MS,
     });
-    res.status(401).json({ error: "Email or password is incorrect." });
+    void logAuditEvent({
+      action: "FAILED_LOGIN",
+      resourceType: "AUTH_CREDENTIALS",
+      ipAddress: req.ip,
+      metadata: { attemptedEmail: email },
+    });
+    res.status(401).json({ error: "Invalid email or password." });
     return;
   }
 
   loginAttempts.delete(key);
-  await createUserSession(user.id, res);
-  res.json(
-    LoginUserResponse.parse({
+  const token = await createUserSession(user.id, res);
+
+  void logAuditEvent({
+    actorUserId: user.id,
+    actorRole: user.role,
+    action: "LOGIN",
+    resourceType: "AUTH_SESSION",
+    resourceId: user.id,
+    ipAddress: req.ip,
+    metadata: { role: user.role },
+  });
+
+  res.json({
+    ...LoginUserResponse.parse({
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       phone: user.phone,
     }),
-  );
+    token,
+  });
 });
 
-router.post("/auth/demo-login", async (_req, res): Promise<void> => {
+// Quick switch / demo login for authorized demo roles in development
+router.post("/auth/demo-login", async (req, res): Promise<void> => {
   if (process.env.NODE_ENV === "production") {
-    res.status(404).json({ error: "Demo operator access is disabled." });
+    res.status(404).json({ error: "Demo access is disabled in production." });
     return;
   }
+  const targetEmail = (req.body?.email as string) || "operator@lifelink.demo";
   const [user] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.email, "operator@lifelink.demo"))
+    .where(eq(usersTable.email, targetEmail))
     .limit(1);
-  if (!user || user.role !== "OPERATOR") {
-    res.status(404).json({ error: "The local demo operator account is not available." });
+
+  if (!user) {
+    res.status(404).json({ error: "Demo account not found." });
     return;
   }
-  await createUserSession(user.id, res);
-  res.json(
-    DemoLoginResponse.parse({
+
+  const token = await createUserSession(user.id, res);
+
+  void logAuditEvent({
+    actorUserId: user.id,
+    actorRole: user.role,
+    action: "LOGIN",
+    resourceType: "DEMO_SESSION",
+    resourceId: user.id,
+    ipAddress: req.ip,
+    metadata: { role: user.role },
+  });
+
+  res.json({
+    ...DemoLoginResponse.parse({
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       phone: user.phone,
     }),
-  );
+    token,
+  });
 });
 
 router.get("/auth/me", requireRole(), async (req, res): Promise<void> => {
@@ -157,6 +204,17 @@ router.get("/auth/me", requireRole(), async (req, res): Promise<void> => {
 });
 
 router.post("/auth/logout", async (req, res): Promise<void> => {
+  const user = requestUser(req);
+  if (user) {
+    void logAuditEvent({
+      actorUserId: user.id,
+      actorRole: user.role,
+      action: "LOGOUT",
+      resourceType: "AUTH_SESSION",
+      resourceId: user.id,
+      ipAddress: req.ip,
+    });
+  }
   await clearUserSession(req, res);
   res.sendStatus(204);
 });

@@ -10,3 +10,4 @@ export * from "./road-incidents";
 export * from "./traffic-conditions";
 export * from "./hospital-prealerts";
 export * from "./location-history";
+export * from "./audit-logs";

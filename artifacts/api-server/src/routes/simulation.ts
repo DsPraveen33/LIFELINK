@@ -9,10 +9,11 @@ import {
 } from "@workspace/api-zod";
 import { performSimulationAction, resetSimulation, runFullDemo } from "../lib/simulation";
 import { requestUser, requireRole } from "../lib/sessions";
+import { logAuditEvent } from "../lib/audit";
 
 const router: IRouter = Router();
 
-router.post("/simulation/action", requireRole("OPERATOR"), async (req, res): Promise<void> => {
+router.post("/simulation/action", requireRole("OPERATOR", "ADMIN"), async (req, res): Promise<void> => {
   const parsed = RunSimulationActionBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Choose a valid simulation action." });
@@ -20,17 +21,47 @@ router.post("/simulation/action", requireRole("OPERATOR"), async (req, res): Pro
   }
   const user = requestUser(req);
   const result = await performSimulationAction(parsed.data, user?.id ?? null);
+
+  void logAuditEvent({
+    actorUserId: user?.id,
+    actorRole: user?.role,
+    action: "SIMULATION_ACTION",
+    resourceType: "SIMULATION",
+    ipAddress: req.ip,
+    metadata: { action: parsed.data.action, emergencyId: parsed.data.emergencyId },
+  });
+
   res.json(RunSimulationActionResponse.parse(result));
 });
 
-router.post("/simulation/run-demo", requireRole("OPERATOR"), async (_req, res): Promise<void> => {
+router.post("/simulation/run-demo", requireRole("OPERATOR", "ADMIN"), async (req, res): Promise<void> => {
+  const user = requestUser(req);
   const [patient] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role, "USER")).limit(1);
   const result = await runFullDemo(patient?.id ?? null);
+
+  void logAuditEvent({
+    actorUserId: user?.id,
+    actorRole: user?.role,
+    action: "SIMULATION_DEMO_RUN",
+    resourceType: "SIMULATION",
+    ipAddress: req.ip,
+  });
+
   res.json(RunFullDemoResponse.parse(result));
 });
 
-router.post("/simulation/reset", requireRole("OPERATOR"), async (_req, res): Promise<void> => {
+router.post("/simulation/reset", requireRole("OPERATOR", "ADMIN"), async (req, res): Promise<void> => {
+  const user = requestUser(req);
   const result = await resetSimulation();
+
+  void logAuditEvent({
+    actorUserId: user?.id,
+    actorRole: user?.role,
+    action: "SIMULATION_RESET",
+    resourceType: "SIMULATION",
+    ipAddress: req.ip,
+  });
+
   res.json(ResetSimulationResponse.parse(result));
 });
 

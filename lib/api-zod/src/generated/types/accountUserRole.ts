@@ -13,4 +13,5 @@ export const AccountUserRole = {
   USER: 'USER',
   DRIVER: 'DRIVER',
   OPERATOR: 'OPERATOR',
+  ADMIN: 'ADMIN',
 } as const;

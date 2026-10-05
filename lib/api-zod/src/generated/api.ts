@@ -39,7 +39,7 @@ export const RegisterUserResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['USER', 'DRIVER', 'OPERATOR']),
+  "role": zod.enum(['USER', 'DRIVER', 'OPERATOR', 'ADMIN']),
   "phone": zod.string().nullable()
 })
 
@@ -59,7 +59,7 @@ export const LoginUserResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['USER', 'DRIVER', 'OPERATOR']),
+  "role": zod.enum(['USER', 'DRIVER', 'OPERATOR', 'ADMIN']),
   "phone": zod.string().nullable()
 })
 
@@ -71,7 +71,7 @@ export const DemoLoginResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['USER', 'DRIVER', 'OPERATOR']),
+  "role": zod.enum(['USER', 'DRIVER', 'OPERATOR', 'ADMIN']),
   "phone": zod.string().nullable()
 })
 
@@ -83,7 +83,7 @@ export const GetCurrentUserResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['USER', 'DRIVER', 'OPERATOR']),
+  "role": zod.enum(['USER', 'DRIVER', 'OPERATOR', 'ADMIN']),
   "phone": zod.string().nullable()
 })
 

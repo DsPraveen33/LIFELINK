@@ -31,6 +31,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+import path from "node:path";
+import fs from "node:fs";
+
 app.use("/api", router);
+
+// Serve frontend assets if built
+const frontendDist = path.resolve(__dirname, "../../lifelink/dist/public");
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
 
 export default app;
