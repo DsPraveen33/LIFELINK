@@ -33,6 +33,30 @@ app.use(cookieParser());
 
 import path from "node:path";
 import fs from "node:fs";
+import { initDb } from "@workspace/db";
+import { seedLifelinkData } from "./lib/seed";
+
+let initDbPromise: Promise<void> | null = null;
+async function ensureDatabaseInitialized() {
+  if (!initDbPromise) {
+    initDbPromise = (async () => {
+      await initDb();
+      await seedLifelinkData();
+    })();
+  }
+  return initDbPromise;
+}
+
+app.use(async (req, res, next) => {
+  if (req.path.startsWith("/api")) {
+    try {
+      await ensureDatabaseInitialized();
+    } catch (err) {
+      logger.error({ err }, "Database initialization error");
+    }
+  }
+  next();
+});
 
 app.use("/api", router);
 

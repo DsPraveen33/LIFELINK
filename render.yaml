@@ -3,7 +3,7 @@ services:
     name: lifelink-emergency
     env: node
     plan: free
-    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    buildCommand: pnpm install --no-frozen-lockfile && pnpm run build
     startCommand: pnpm start
     envVars:
       - key: NODE_ENV

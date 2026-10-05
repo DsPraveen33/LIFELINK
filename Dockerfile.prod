@@ -1,24 +1,22 @@
 # Multi-stage production build for LIFELINK Full-Stack
-FROM node:20 AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Enable pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm
+RUN npm install -g pnpm
 
-# Copy project files
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
+# Copy workspace configs
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY lib ./lib
 COPY artifacts ./artifacts
 
-# Install dependencies dynamically for Linux
-RUN pnpm install --no-frozen-lockfile
-
-# Build frontend and backend
+# Install dependencies and build frontend and backend
+RUN pnpm install --frozen-lockfile
 RUN pnpm run build
 
 # Runtime Stage
-FROM node:20-slim AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
