@@ -1,0 +1,1 @@
+- [LIFELINK demo boundaries](lifelink-demo-boundaries.md) — preserve original code, simulation labeling, local-only operator access, and deterministic routing fallback.

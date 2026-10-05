@@ -1,0 +1,1387 @@
+Yes. **This part is very important**. LIFELINK lo login ayyaka each person ki **role-based permissions + data isolation** compulsory ga undali.
+
+Meaning:
+
+- 👤 **User** → only their own profile, emergencies, ambulance tracking, hospital info.
+- 🚑 **Driver** → only their own driver profile, assigned ambulance, assigned emergency/patient data, assigned route/hospital.
+- 🖥️ **Operator** → command-center operational data required for active emergencies; cannot modify arbitrary user private data.
+- 🔐 **Admin** → system management only, with audit logging.
+- ❌ One user should never be able to access another user's private data by changing an ID in the URL/API.
+- ❌ Driver A must not access Driver B's assignments.
+- ❌ User A must not access User B's emergency.
+- ❌ Frontend hiding is NOT enough; authorization must be enforced in the backend/database too.
+
+Also, **location permission should be requested separately from login**. Browser/mobile GPS permission is controlled by the device/browser; our app should request it only when needed.
+
+Add this block to the master Replit prompt—or better, use the following **security + location master add-on** after the previous prompt.
+
+```text
+===============================================================
+LIFELINK — SECURITY, LOGIN, PERMISSIONS & LOCATION SYSTEM
+===============================================================
+
+IMPORTANT:
+
+LIFELINK is an emergency application containing sensitive
+operational and personal information.
+
+Implement proper authentication, authorization, data isolation,
+location permissions and audit logging.
+
+DO NOT treat frontend route hiding as security.
+
+EVERY protected API must perform backend authorization.
+
+===============================================================
+1. ROLE SYSTEM
+===============================================================
+
+Create exactly these primary roles:
+
+USER
+DRIVER
+OPERATOR
+ADMIN
+
+Every authenticated account must have exactly one primary role.
+
+Store the role securely in the database.
+
+Never trust a role sent by the frontend.
+
+The backend must determine the authenticated user's role
+from the authenticated session/token/database.
+
+===============================================================
+2. USER PERMISSIONS
+===============================================================
+
+A USER can:
+
+✓ View own profile
+✓ Edit allowed own profile fields
+✓ Create own emergency
+✓ View own emergency history
+✓ View own active emergency
+✓ View assigned ambulance for own emergency
+✓ View ambulance live location for own emergency
+✓ View selected hospital for own emergency
+✓ View ETA
+✓ View route status
+✓ View hospital readiness relevant to own emergency
+✓ Receive emergency updates
+✓ Give location permission
+✓ Revoke location permission
+✓ Change their current location manually
+
+A USER cannot:
+
+✗ View another user's profile
+✗ View another user's emergency
+✗ View another user's location
+✗ View another user's medical information
+✗ View another user's emergency history
+✗ View arbitrary ambulance information
+✗ Change ambulance status
+✗ Change hospital status
+✗ Change routing decisions
+✗ Access command center
+✗ Access driver dashboard
+✗ Access operator APIs
+
+===============================================================
+3. DRIVER PERMISSIONS
+===============================================================
+
+A DRIVER can:
+
+✓ View own driver profile
+✓ View own ambulance
+✓ Change own availability
+✓ Go ONLINE/OFFLINE
+✓ Receive assigned emergency
+✓ Accept/decline assigned emergency
+✓ View patient location for assigned emergency
+✓ View patient emergency requirements necessary for transport
+✓ View recommended route
+✓ View alternative route information needed for navigation
+✓ View selected hospital
+✓ View hospital readiness needed for assigned transport
+✓ Send own ambulance GPS location
+✓ Update own ambulance status
+✓ Mark ARRIVED AT SCENE
+✓ Mark PATIENT ONBOARD
+✓ Mark ARRIVED AT HOSPITAL
+✓ Receive rerouting instructions
+✓ Receive hospital destination changes
+
+A DRIVER cannot:
+
+✗ View unrelated users
+✗ View unrelated emergencies
+✗ View another driver's private data
+✗ Control another ambulance
+✗ Change another ambulance's location
+✗ Modify hospital capacity
+✗ Modify another driver's assignments
+✗ Access full command center administration
+✗ Change LIFELINK decision-engine weights
+✗ Change system configuration
+
+IMPORTANT:
+
+A driver may only access patient/emergency information
+for emergencies assigned to that driver/ambulance.
+
+===============================================================
+4. OPERATOR PERMISSIONS
+===============================================================
+
+OPERATOR is the command-center role.
+
+An OPERATOR can:
+
+✓ View active emergencies required for operations
+✓ View active ambulances
+✓ View operational hospital status
+✓ View road incidents
+✓ View traffic conditions
+✓ View routes
+✓ View LIFELINK decisions
+✓ View decision explanations
+✓ Monitor active emergency journeys
+✓ View event timeline
+✓ Trigger approved simulation events
+✓ Monitor ambulance positions
+✓ Monitor hospital readiness
+✓ View operational statistics
+
+An OPERATOR cannot:
+
+✗ Read arbitrary user account passwords
+✗ Read password hashes
+✗ Modify user authentication credentials
+✗ Access unrelated private user information
+✗ Change another operator's credentials
+✗ Impersonate a user
+✗ Change driver identity
+✗ Modify audit logs
+✗ Delete security records
+
+Use data minimization.
+
+The command center should receive only the information
+necessary for emergency operations.
+
+===============================================================
+5. ADMIN PERMISSIONS
+===============================================================
+
+ADMIN can:
+
+✓ Manage users
+✓ Manage drivers
+✓ Manage operators
+✓ Manage hospitals
+✓ Manage ambulances
+✓ Manage system configuration
+✓ Manage simulation configuration
+✓ View audit logs
+✓ Disable accounts
+✓ Reset operational configuration
+
+ADMIN must NOT automatically receive unrestricted access
+to sensitive information unless necessary.
+
+Use least-privilege access.
+
+Every administrative sensitive action must be logged.
+
+===============================================================
+6. AUTHENTICATION
+===============================================================
+
+Implement secure authentication.
+
+Use:
+
+email
+password
+
+Passwords must be hashed using a secure password hashing
+algorithm such as Argon2 or bcrypt.
+
+NEVER store plaintext passwords.
+
+NEVER return password hashes to frontend.
+
+Use secure session cookies or a properly implemented
+authentication token mechanism.
+
+Prefer secure HTTP-only cookies for browser sessions.
+
+Configure:
+
+HttpOnly
+Secure in production
+SameSite
+appropriate expiration
+
+===============================================================
+7. LOGIN FLOW
+===============================================================
+
+Login screen:
+
+LIFELINK
+
+Email
+
+Password
+
+[ LOGIN ]
+
+[ CREATE ACCOUNT ]
+
+After successful login:
+
+read authenticated role.
+
+USER
+→ /user
+
+DRIVER
+→ /driver
+
+OPERATOR
+→ /command-center
+
+ADMIN
+→ /admin
+
+Do not allow the user to choose a privileged role
+from the frontend.
+
+Example:
+
+Do NOT provide:
+
+[Login as Admin]
+
+The role comes from the backend account.
+
+===============================================================
+8. REGISTRATION
+===============================================================
+
+Public registration should only allow:
+
+USER
+
+Do NOT allow public users to register themselves as:
+
+ADMIN
+OPERATOR
+
+Driver registration must have a controlled workflow.
+
+For prototype:
+
+ADMIN can create DRIVER and OPERATOR accounts.
+
+===============================================================
+9. SESSION SECURITY
+===============================================================
+
+Implement:
+
+session expiration
+
+logout
+
+session invalidation
+
+authentication middleware
+
+authorization middleware
+
+CSRF protection where applicable
+
+rate limiting for login
+
+failed login handling
+
+Do not reveal whether an email exists through overly
+specific authentication error messages.
+
+Example:
+
+"Invalid email or password."
+
+rather than:
+
+"Email exists but password is wrong."
+
+===============================================================
+10. BACKEND AUTHORIZATION
+===============================================================
+
+Create middleware:
+
+requireAuth()
+
+requireRole()
+
+requireOwnership()
+
+Example:
+
+requireRole("DRIVER")
+
+requireRole("OPERATOR")
+
+requireRole("ADMIN")
+
+requireOwnership()
+
+===============================================================
+11. OBJECT-LEVEL AUTHORIZATION
+===============================================================
+
+THIS IS CRITICAL.
+
+Do not only check:
+
+"Is this user logged in?"
+
+Also check:
+
+"Does this user own or have permission to access this object?"
+
+Example:
+
+GET:
+
+/api/emergencies/E-001
+
+must NOT simply return E-001 to every authenticated user.
+
+Backend must determine:
+
+Who is requesting?
+
+What is their role?
+
+Is this emergency theirs?
+
+Are they the assigned driver?
+
+Are they an authorized operator?
+
+Are they an admin with legitimate permission?
+
+Then allow or deny.
+
+===============================================================
+12. USER DATA ISOLATION
+===============================================================
+
+Example:
+
+User A:
+
+userId = U001
+
+User B:
+
+userId = U002
+
+If User A calls:
+
+GET /api/users/U002
+
+return:
+
+403 FORBIDDEN
+
+or an appropriately safe response.
+
+Do NOT return User B's information.
+
+Similarly:
+
+User A must not access:
+
+/api/emergencies/E002
+
+if E002 belongs to User B.
+
+===============================================================
+13. DRIVER DATA ISOLATION
+===============================================================
+
+Driver A:
+
+D001
+
+Ambulance:
+
+AMB-01
+
+Driver B:
+
+D002
+
+Ambulance:
+
+AMB-02
+
+Driver A must not modify:
+
+AMB-02
+
+Driver A must not access unrelated patient assignments.
+
+Backend must verify:
+
+ambulance.driverId === authenticatedUser.driverId
+
+before allowing driver-specific actions.
+
+===============================================================
+14. EMERGENCY ACCESS CONTROL
+===============================================================
+
+Emergency access rules:
+
+USER:
+
+only own emergency.
+
+DRIVER:
+
+only assigned emergency.
+
+OPERATOR:
+
+active operational emergencies.
+
+ADMIN:
+
+according to administrative permissions.
+
+Every emergency API must enforce these rules.
+
+===============================================================
+15. LOCATION PERMISSION
+===============================================================
+
+Location access must be explicit.
+
+Do NOT silently request GPS permission immediately
+on application load.
+
+For USER:
+
+Request location when the user starts an emergency
+or chooses:
+
+"Use My Location"
+
+Display:
+
+"LIFELINK needs your location to find an ambulance
+and provide accurate emergency routing."
+
+Buttons:
+
+[ ALLOW LOCATION ]
+
+[ ENTER LOCATION MANUALLY ]
+
+===============================================================
+16. USER LOCATION MODES
+===============================================================
+
+Support:
+
+AUTOMATIC GPS
+
+MANUAL LOCATION
+
+DEMO LOCATION
+
+Priority:
+
+1. User GPS if permission granted
+2. Manual location if GPS unavailable/denied
+3. Demo location when Demo Mode is enabled
+
+Never pretend a demo location is real GPS.
+
+Clearly display:
+
+LIVE LOCATION
+
+or
+
+MANUAL LOCATION
+
+or
+
+DEMO LOCATION
+
+===============================================================
+17. USER GPS
+===============================================================
+
+Use browser/device Geolocation API.
+
+When permission is granted:
+
+navigator.geolocation
+
+Use:
+
+latitude
+longitude
+accuracy
+timestamp
+
+Do not continuously track a user unnecessarily.
+
+During an active emergency, location updates may be
+enabled when required.
+
+===============================================================
+18. USER LOCATION CONTROL
+===============================================================
+
+Provide:
+
+Use My Location
+
+Change Location
+
+Stop Location Sharing
+
+The user should understand when location is being used.
+
+During active emergency:
+
+show:
+
+📍 LIVE LOCATION ACTIVE
+
+After emergency:
+
+location tracking should stop unless the user explicitly
+continues it for another feature.
+
+===============================================================
+19. DRIVER LOCATION
+===============================================================
+
+Driver location is operationally required during an active
+ambulance mission.
+
+When driver goes ONLINE:
+
+request location permission.
+
+Show:
+
+"Location is required while you are online so LIFELINK
+can provide live dispatch and navigation."
+
+During active transport:
+
+send location updates periodically.
+
+Example:
+
+every 2–5 seconds during simulation.
+
+In a real deployment, use an appropriate adaptive interval.
+
+When driver goes OFFLINE:
+
+stop active location tracking.
+
+===============================================================
+20. DRIVER LOCATION PRIVACY
+===============================================================
+
+Driver's exact live location should be visible only to:
+
+the driver
+
+authorized command-center operators
+
+authorized systems required for the active emergency
+
+Do not expose driver location publicly.
+
+A USER should see only the ambulance assigned to
+their emergency, not every ambulance in the city.
+
+===============================================================
+21. COMMAND CENTER LOCATION ACCESS
+===============================================================
+
+OPERATOR can see:
+
+active ambulance locations
+
+active emergency locations
+
+relevant hospital locations
+
+road incidents
+
+But only the operational data required for the
+command-center function.
+
+Do not expose unnecessary private information.
+
+===============================================================
+22. HOSPITAL DATA PRIVACY
+===============================================================
+
+Hospital operational information can include:
+
+ER status
+
+trauma beds
+
+ICU beds
+
+specialist availability
+
+readiness
+
+wait time
+
+But separate:
+
+PUBLIC-SAFE INFORMATION
+
+from
+
+OPERATIONAL INFORMATION.
+
+USER should see only hospital information relevant
+to their active emergency.
+
+DRIVER should see only the selected/relevant hospital
+information required for transport.
+
+OPERATOR can see operational hospital status.
+
+===============================================================
+23. MEDICAL DATA MINIMIZATION
+===============================================================
+
+Do not store unnecessary patient medical information.
+
+For the hackathon prototype, store only what is necessary:
+
+emergency type
+
+severity
+
+required capabilities
+
+basic emergency notes
+
+location
+
+status
+
+Do not create unnecessary medical records.
+
+Do not expose emergency notes to roles that do not need them.
+
+===============================================================
+24. API SECURITY
+===============================================================
+
+Every protected endpoint must have:
+
+authentication
+
+authorization
+
+input validation
+
+object ownership validation
+
+safe error handling
+
+Example:
+
+POST /api/ambulances/:id/location
+
+must verify:
+
+authenticated user is DRIVER
+
+AND
+
+ambulance belongs to that driver
+
+before accepting location update.
+
+===============================================================
+25. WEBSOCKET SECURITY
+===============================================================
+
+Do NOT broadcast every event to every connected client.
+
+Create role-aware WebSocket rooms.
+
+Example:
+
+user:{userId}
+
+driver:{driverId}
+
+emergency:{emergencyId}
+
+operator:command-center
+
+hospital:{hospitalId}
+
+When event occurs:
+
+send only to authorized recipients.
+
+Example:
+
+ambulance_location_updated
+
+for AMB-02 assigned to User U001:
+
+send to:
+
+user:U001
+
+driver:D002
+
+operator:command-center
+
+Do NOT send to:
+
+user:U002
+
+driver:D003
+
+===============================================================
+26. SOCKET AUTHORIZATION
+===============================================================
+
+Authenticate WebSocket connection.
+
+Do not trust:
+
+client-supplied role
+
+client-supplied userId
+
+client-supplied driverId
+
+Derive identity from authenticated session/token.
+
+Before joining:
+
+emergency:{id}
+
+verify the user has permission to view that emergency.
+
+===============================================================
+27. AUDIT LOGGING
+===============================================================
+
+Create audit_logs table.
+
+Store:
+
+id
+
+actorUserId
+
+actorRole
+
+action
+
+resourceType
+
+resourceId
+
+timestamp
+
+ipAddress where appropriate
+
+metadata
+
+Log sensitive events:
+
+LOGIN
+
+LOGOUT
+
+FAILED_LOGIN
+
+EMERGENCY_CREATED
+
+EMERGENCY_VIEWED
+
+AMBULANCE_ASSIGNED
+
+ROUTE_CHANGED
+
+HOSPITAL_CHANGED
+
+HOSPITAL_STATUS_CHANGED
+
+ADMIN_ACTION
+
+PERMISSION_DENIED
+
+LOCATION_PERMISSION_GRANTED
+
+LOCATION_PERMISSION_REVOKED
+
+Do not log passwords or sensitive secrets.
+
+===============================================================
+28. PERMISSION DENIED
+===============================================================
+
+If unauthorized:
+
+return:
+
+403 Forbidden
+
+Frontend should show:
+
+"You don't have permission to access this information."
+
+Do not expose internal security details.
+
+===============================================================
+29. FRONTEND ROUTE PROTECTION
+===============================================================
+
+Protect:
+
+/user/*
+
+/driver/*
+
+/command-center/*
+
+/admin/*
+
+If wrong role:
+
+redirect to appropriate role dashboard.
+
+But remember:
+
+Frontend route protection is NOT the primary security.
+
+Backend authorization is mandatory.
+
+===============================================================
+30. DATABASE SECURITY
+===============================================================
+
+Use foreign keys.
+
+Use constraints.
+
+Use indexes for:
+
+userId
+
+driverId
+
+ambulanceId
+
+emergencyId
+
+hospitalId
+
+createdAt
+
+Do not expose database directly to frontend.
+
+All database operations go through backend services.
+
+===============================================================
+31. NO IDOR VULNERABILITY
+===============================================================
+
+Explicitly test against:
+
+Insecure Direct Object Reference.
+
+Example:
+
+User A tries:
+
+/api/emergencies/E-002
+
+where E-002 belongs to User B.
+
+Must fail.
+
+Driver A tries:
+
+/api/ambulances/AMB-02
+
+where AMB-02 belongs to Driver B.
+
+Must fail.
+
+Operator permissions must also be scoped appropriately.
+
+===============================================================
+32. SECURITY TESTS
+===============================================================
+
+Create automated tests for:
+
+✓ User cannot access another user
+
+✓ User cannot access another emergency
+
+✓ User cannot access another ambulance
+
+✓ Driver cannot access another driver's ambulance
+
+✓ Driver cannot access unrelated patient
+
+✓ Driver cannot modify another ambulance
+
+✓ Operator cannot access passwords
+
+✓ User cannot access command center
+
+✓ Driver cannot access admin panel
+
+✓ Normal user cannot create operator
+
+✓ Normal user cannot create admin
+
+✓ Unauthorized WebSocket room join fails
+
+✓ Unauthorized API request returns 403
+
+✓ Expired session fails
+
+✓ Invalid token fails
+
+===============================================================
+33. USER DATA SCREEN
+===============================================================
+
+Create:
+
+/user/profile
+
+Show only the logged-in user's information.
+
+Example:
+
+Name
+
+Phone
+
+Email
+
+Emergency history
+
+Location permission status
+
+Buttons:
+
+EDIT PROFILE
+
+LOCATION SETTINGS
+
+LOGOUT
+
+===============================================================
+34. DRIVER PROFILE SCREEN
+===============================================================
+
+Create:
+
+/driver/profile
+
+Show:
+
+Driver name
+
+Driver ID
+
+Phone
+
+Assigned ambulance
+
+Vehicle number
+
+Online/offline status
+
+Location permission status
+
+Emergency history relevant to driver
+
+Do NOT show unrelated drivers.
+
+===============================================================
+35. OPERATOR PROFILE
+===============================================================
+
+Show:
+
+Operator name
+
+Operator ID
+
+Role
+
+Shift status
+
+Logout
+
+Do not show sensitive authentication data.
+
+===============================================================
+36. LOCATION SETTINGS
+===============================================================
+
+Create a location settings page.
+
+Show:
+
+Location permission:
+
+ALLOWED / DENIED
+
+Current mode:
+
+LIVE GPS
+
+MANUAL
+
+DEMO
+
+Buttons:
+
+USE GPS
+
+ENTER MANUALLY
+
+STOP LOCATION SHARING
+
+For driver:
+
+Location tracking while ONLINE:
+
+ON/OFF
+
+Explain why location is required.
+
+===============================================================
+37. TIRUPATI DEMO CONFIGURATION
+===============================================================
+
+Configure the application for:
+
+TIRUPATI
+
+The default DEMO map should open around Tirupati.
+
+Use:
+
+DEMO_LOCATION_CITY = "Tirupati"
+
+The actual coordinates should be configurable
+through environment/configuration rather than hardcoded
+throughout the application.
+
+Create:
+
+simulation/config.ts
+
+with:
+
+city
+
+centerLatitude
+
+centerLongitude
+
+zoom
+
+demo emergencies
+
+demo hospitals
+
+demo ambulances
+
+demo road incidents
+
+===============================================================
+38. TIRUPATI LOCATION MODES
+===============================================================
+
+The system supports:
+
+LIVE
+
+MANUAL
+
+DEMO
+
+LIVE:
+
+Use browser GPS.
+
+MANUAL:
+
+User selects location through map/search.
+
+DEMO:
+
+Use predefined Tirupati simulation coordinates.
+
+Command center:
+
+Default to Tirupati in DEMO mode.
+
+Driver:
+
+Use simulated ambulance movement in DEMO mode.
+
+User:
+
+Use simulated emergency location in DEMO mode.
+
+===============================================================
+39. PRIVACY PRINCIPLE
+===============================================================
+
+Follow:
+
+LEAST PRIVILEGE
+
+DATA MINIMIZATION
+
+OBJECT-LEVEL AUTHORIZATION
+
+ROLE-BASED ACCESS
+
+EXPLICIT LOCATION PERMISSION
+
+AUDITABILITY
+
+Every person should see only what they need
+to perform their role.
+
+===============================================================
+40. FINAL SECURITY ARCHITECTURE
+===============================================================
+
+                    LOGIN
+                      |
+                AUTHENTICATION
+                      |
+               USER ID + ROLE
+                      |
+              AUTHORIZATION
+                      |
+        +-------------+-------------+
+        |             |             |
+       USER         DRIVER       OPERATOR
+        |             |             |
+        v             v             v
+   OWN DATA      ASSIGNED DATA   OPERATIONS
+        |             |             |
+        +-------------+-------------+
+                      |
+                BACKEND API
+                      |
+              OWNERSHIP CHECK
+                      |
+                 DATABASE
+                      |
+             REAL-TIME SOCKET
+                      |
+          ROLE-AWARE EVENT ROOMS
+
+===============================================================
+41. IMPORTANT SECURITY RULE
+===============================================================
+
+NEVER implement security like:
+
+if frontendRole === "admin"
+
+That is not sufficient.
+
+Use authenticated backend identity.
+
+Every request should effectively answer:
+
+WHO ARE YOU?
+
+WHAT ROLE DO YOU HAVE?
+
+WHAT RESOURCE ARE YOU ACCESSING?
+
+DO YOU HAVE PERMISSION?
+
+WHAT ACTION ARE YOU PERFORMING?
+
+===============================================================
+42. FINAL ACCEPTANCE TEST
+===============================================================
+
+Test:
+
+USER A logs in.
+
+USER A sees User A data.
+
+USER B logs in.
+
+USER B sees User B data.
+
+User A cannot access User B.
+
+DRIVER A logs in.
+
+Driver A sees Driver A data.
+
+Driver A cannot access Driver B.
+
+USER A creates emergency.
+
+Driver A gets assigned.
+
+User A sees Driver A.
+
+User B does NOT see Driver A.
+
+Driver A sees only the assigned emergency.
+
+Operator sees the active emergency.
+
+User cannot open command center.
+
+Driver cannot open command center.
+
+User cannot modify hospital status.
+
+Driver cannot modify hospital capacity.
+
+Operator cannot access passwords.
+
+GPS permission is requested explicitly.
+
+If GPS denied:
+
+manual location works.
+
+If manual location unavailable:
+
+demo mode works.
+
+All unauthorized attempts return:
+
+403 Forbidden
+
+and create an audit event.
+
+===============================================================
+FINAL IMPLEMENTATION REQUIREMENT
+===============================================================
+
+Implement all of the above as part of the LIFELINK
+full-stack application.
+
+Do not only create documentation.
+
+Actually implement:
+
+AUTHENTICATION
+
+AUTHORIZATION
+
+ROLE-BASED ACCESS
+
+DATA ISOLATION
+
+LOCATION PERMISSIONS
+
+LIVE GPS
+
+MANUAL LOCATION
+
+TIRUPATI DEMO LOCATION
+
+WEBSOCKET SECURITY
+
+AUDIT LOGGING
+
+SECURITY TESTS
+
+Then run the application and test all roles.
+
+Final report must include:
+
+1. Authentication architecture
+2. Role permissions matrix
+3. Database access rules
+4. API authorization rules
+5. WebSocket authorization
+6. Location permission flow
+7. Manual/GPS/demo location flow
+8. Privacy model
+9. Security tests
+10. How to test each role
+
+The final system must guarantee:
+
+USER → sees only permitted user data
+
+DRIVER → sees only permitted assigned operational data
+
+OPERATOR → sees only required command-center operational data
+
+ADMIN → manages authorized system resources
+
+NO ROLE → can access unauthorized data
+
+===============================================================
+START IMPLEMENTATION NOW
+===============================================================
+```
+
+### 🔐 Simple ga mana permission model
+
+| Role | Own data | Assigned emergency | All active emergencies | Ambulance control | Hospital control |
+|---|---|---|---|---|---|
+| 👤 User | ✅ | Own only | ❌ | Own ambulance tracking only | Relevant info only |
+| 🚑 Driver | ✅ | Assigned only | ❌ | Own ambulance | Relevant hospital only |
+| 🖥️ Operator | Own profile | Operational view | ✅ | Monitor | Monitor |
+| 🛡️ Admin | ✅ | Authorized | According to role | Manage | Manage |
+
+**Most important:** frontend lo buttons hide cheyyadam alone security kaadu. Backend lo every request ki **authentication + role check + ownership check** compulsory. Appudu user URL/API lo ID change chesi vere person's data access cheyyaleru.
+
+Also, **location permission login permission tho mix cheyyakunda separate ga** implement cheyyadam best: login → role access; emergency/navigation use chesthunappudu → explicit GPS permission. This gives you both privacy and a reliable Tirupati demo.

@@ -1,0 +1,3415 @@
+Yes. **Ippudu image ni final UI reference ga lock chesi**, Replit Agent ki oka single **full-stack master prompt** ivvali.
+
+Image lo exactly 3 roles unnayi:
+
+1. **User / Patient Mobile App** — SOS, ambulance tracking, hospital info.
+2. **Ambulance Driver Mobile App** — emergency accept, navigation, route, hospital, rerouting.
+3. **Command Center Web Dashboard** — all emergencies, ambulances, hospitals, traffic, decisions, timeline.
+
+And these three are connected through one backend + database + real-time WebSocket layer.
+
+Below prompt ni **as-is Replit Agent lo paste cheyyi**. No GitHub repos, fresh implementation only.
+
+---
+
+# LIFELINK — COMPLETE FULL-STACK MASTER PROMPT FOR REPLIT
+
+```text
+===============================================================
+LIFELINK — FULL-STACK EMERGENCY RESPONSE PLATFORM
+===============================================================
+
+You are a SENIOR FULL-STACK SOFTWARE ENGINEER, SYSTEM
+ARCHITECT, DATABASE ENGINEER, REAL-TIME ENGINEER, UI/UX
+ENGINEER and QA ENGINEER.
+
+Build a completely NEW project from scratch.
+
+Project:
+
+LIFELINK
+
+Tagline:
+
+"Every Second Matters. Every Route Counts."
+
+Core statement:
+
+"We don't just find a route.
+ We find the right route to the right hospital."
+
+Hackathon:
+
+NEXUS BREACH HACKATHON 2026
+
+Problem:
+
+SC-02 — Dynamic Emergency Routing
+
+===============================================================
+CRITICAL INSTRUCTION — FRESH PROJECT
+===============================================================
+
+DO NOT use GitHub repositories.
+
+DO NOT clone any GitHub repository.
+
+DO NOT import an existing ambulance project.
+
+DO NOT copy code from another project.
+
+DO NOT build this on top of another application.
+
+This is a completely fresh implementation.
+
+You may use standard npm/open-source libraries such as:
+
+React
+Vite
+TypeScript
+Tailwind CSS
+Express
+Socket.IO
+Leaflet
+PostgreSQL
+Drizzle ORM
+Zod
+
+and other standard packages when necessary.
+
+But:
+
+ALL LIFELINK BUSINESS LOGIC
+ALL DECISION ENGINE LOGIC
+ALL DATABASE MODELS
+ALL APIs
+ALL REAL-TIME EVENTS
+ALL UI FLOW
+ALL INTEGRATION
+
+must be implemented specifically for this project.
+
+===============================================================
+PRIMARY UI REFERENCE
+===============================================================
+
+I have provided an image showing the intended LIFELINK UI.
+
+Treat that image as the PRIMARY visual reference.
+
+The final application should visually and functionally follow
+the structure of the image.
+
+The image contains THREE different interfaces:
+
+---------------------------------------------------------------
+INTERFACE 1 — USER / PATIENT MOBILE APP
+---------------------------------------------------------------
+
+The first phone represents the emergency user/patient.
+
+The user should be able to:
+
+- request emergency assistance
+- select emergency type
+- provide current location
+- send SOS
+- track assigned ambulance
+- see ambulance ETA
+- see ambulance live location
+- see selected hospital
+- see hospital readiness
+- see estimated hospital arrival
+- receive route/hospital updates
+- receive emergency status updates
+
+The user does NOT need the entire command center.
+
+The user needs:
+
+"Where is my ambulance?"
+
+"How long until it arrives?"
+
+"Which hospital is being used?"
+
+"Is everything progressing?"
+
+---------------------------------------------------------------
+INTERFACE 2 — AMBULANCE DRIVER MOBILE APP
+---------------------------------------------------------------
+
+The second phone represents the ambulance driver.
+
+The driver should be able to:
+
+- login
+- go online/offline
+- receive emergency request
+- accept/decline emergency
+- see patient location
+- navigate to patient
+- see emergency severity
+- see required medical capabilities
+- see recommended route
+- see ETA
+- see predicted ETA
+- see traffic
+- see road incidents
+- see selected hospital
+- see hospital readiness
+- receive automatic rerouting instructions
+- update ambulance status
+- update live GPS location
+- mark arrived at scene
+- mark patient onboard
+- start transport
+- reach hospital
+- complete transport
+
+The driver DOES NOT need the city-wide command center.
+
+The driver needs:
+
+"What should I do RIGHT NOW?"
+
+---------------------------------------------------------------
+INTERFACE 3 — COMMAND CENTER WEB DASHBOARD
+---------------------------------------------------------------
+
+The desktop dashboard represents emergency operations.
+
+The operator should see:
+
+- all active emergencies
+- all ambulances
+- all hospitals
+- live map
+- traffic
+- road restrictions
+- route alternatives
+- route comparison
+- hospital comparison
+- LIFELINK recommendation
+- decision explanation
+- ambulance telemetry
+- hospital readiness
+- real-time event timeline
+
+The operator needs:
+
+"What is happening across the city?"
+
+===============================================================
+CORE ARCHITECTURE
+===============================================================
+
+Build one unified system:
+
+                 LIFELINK
+                     |
+              REAL-TIME CORE
+                     |
+          +----------+----------+
+          |          |          |
+          v          v          v
+       USER       DRIVER      COMMAND
+        APP         APP        CENTER
+          \          |          /
+           \         |         /
+            +--------+--------+
+                     |
+                BACKEND API
+                     |
+              DECISION ENGINE
+                     |
+       +-------------+-------------+
+       |             |             |
+       v             v             v
+   ROUTING       HOSPITAL      AMBULANCE
+    ENGINE       ENGINE         ENGINE
+       |             |             |
+       +-------------+-------------+
+                     |
+                  DATABASE
+                     |
+              SIMULATION ENGINE
+
+===============================================================
+TECHNOLOGY STACK
+===============================================================
+
+FRONTEND:
+
+React
+TypeScript
+Vite
+Tailwind CSS
+React Router
+Leaflet
+Socket.IO Client
+
+BACKEND:
+
+Node.js
+Express
+TypeScript
+Socket.IO
+Zod validation
+
+DATABASE:
+
+PostgreSQL
+
+ORM:
+
+Drizzle ORM
+
+MAP:
+
+Leaflet
+
+MAP DATA:
+
+OpenStreetMap-compatible tiles
+
+ROUTING:
+
+Use an external routing service such as OSRM when available.
+
+IMPORTANT:
+
+The application MUST also have a complete simulation/fallback
+routing mode so the hackathon demo works even if the external
+routing API fails.
+
+===============================================================
+APPLICATION STRUCTURE
+===============================================================
+
+Create:
+
+client/
+server/
+shared/
+db/
+simulation/
+docs/
+
+Suggested:
+
+client/
+  src/
+    components/
+    pages/
+    layouts/
+    features/
+      user/
+      driver/
+      command-center/
+    hooks/
+    services/
+    websocket/
+    types/
+    utils/
+
+server/
+  src/
+    routes/
+    controllers/
+    services/
+    engines/
+    websocket/
+    simulation/
+    middleware/
+    utils/
+
+shared/
+  types/
+  schemas/
+  constants/
+
+db/
+  schema/
+  migrations/
+
+simulation/
+  scenarios/
+
+docs/
+
+===============================================================
+ROLE-BASED APPLICATION
+===============================================================
+
+Implement three application roles:
+
+USER
+
+DRIVER
+
+OPERATOR
+
+After login, route each role to the correct interface.
+
+USER:
+mobile-first emergency application
+
+DRIVER:
+mobile/tablet-first ambulance application
+
+OPERATOR:
+desktop-first command center
+
+Do NOT show the same dashboard to all users.
+
+===============================================================
+AUTHENTICATION
+===============================================================
+
+Implement basic role-based authentication.
+
+Roles:
+
+USER
+DRIVER
+OPERATOR
+
+For the hackathon prototype, keep authentication simple.
+
+Use:
+
+email
+password
+role
+
+Store passwords securely.
+
+Protect role-specific routes.
+
+Example:
+
+/user
+/driver
+/command-center
+
+Do not over-engineer authentication.
+
+===============================================================
+USER / PATIENT APP
+===============================================================
+
+Create:
+
+/user
+
+---------------------------------------------------------------
+USER HOME
+---------------------------------------------------------------
+
+Header:
+
+LIFELINK
+
+Profile icon
+
+Main button:
+
+EMERGENCY SOS
+
+Text:
+
+"Get an ambulance immediately"
+
+Emergency categories:
+
+Road Accident
+Cardiac
+Stroke
+Breathing
+Burn
+Other
+
+Current location:
+
+Show current location.
+
+Button:
+
+SEND EMERGENCY REQUEST
+
+---------------------------------------------------------------
+AFTER SOS
+---------------------------------------------------------------
+
+Show:
+
+Emergency ID
+
+Emergency type
+
+Severity
+
+Location
+
+Status:
+
+SEARCHING FOR AMBULANCE
+
+Then:
+
+AMBULANCE ASSIGNED
+
+Example:
+
+AMB-02
+
+Status:
+
+EN ROUTE
+
+ETA:
+
+7 min
+
+---------------------------------------------------------------
+USER LIVE TRACKING
+---------------------------------------------------------------
+
+Show a map.
+
+Map contains:
+
+User/patient marker
+
+Ambulance marker
+
+Route line
+
+Hospital marker
+
+Show:
+
+AMB-02
+7 min away
+
+Status:
+
+EN ROUTE
+
+---------------------------------------------------------------
+USER HOSPITAL CARD
+---------------------------------------------------------------
+
+Show:
+
+Destination Hospital
+
+City Trauma Center B
+
+Status:
+
+READY
+
+Trauma Beds:
+
+3
+
+ICU Beds:
+
+2
+
+ETA:
+
+14 min
+
+---------------------------------------------------------------
+USER STATUS FLOW
+---------------------------------------------------------------
+
+REQUESTED
+
+↓
+
+AMBULANCE ASSIGNED
+
+↓
+
+AMBULANCE EN ROUTE
+
+↓
+
+ARRIVED AT SCENE
+
+↓
+
+PATIENT ONBOARD
+
+↓
+
+TRANSPORTING
+
+↓
+
+HOSPITAL ACCEPTED
+
+↓
+
+ARRIVING
+
+↓
+
+ARRIVED
+
+↓
+
+COMPLETED
+
+---------------------------------------------------------------
+USER ROUTE UPDATE
+---------------------------------------------------------------
+
+If route changes:
+
+show:
+
+ROUTE UPDATED
+
+Reason:
+
+"Accident detected on previous route."
+
+New ETA:
+
+15 min
+
+New Hospital:
+
+City Trauma Center B
+
+Keep this simple and reassuring.
+
+===============================================================
+DRIVER APP
+===============================================================
+
+Create:
+
+/driver
+
+Mobile-first.
+
+===============================================================
+DRIVER HOME
+===============================================================
+
+Header:
+
+LIFELINK
+
+AMB-02
+
+ONLINE
+
+Status toggle:
+
+ONLINE / OFFLINE
+
+Show:
+
+Current location
+
+Current status
+
+No active emergency:
+
+"Waiting for dispatch"
+
+===============================================================
+NEW EMERGENCY SCREEN
+===============================================================
+
+When emergency is assigned:
+
+Show large alert:
+
+NEW EMERGENCY
+
+CRITICAL ROAD ACCIDENT
+
+2.4 km away
+
+Patient:
+
+Critical
+
+Requirements:
+
+TRAUMA + ICU
+
+Buttons:
+
+DECLINE
+
+ACCEPT
+
+---------------------------------------------------------------
+DRIVER NAVIGATION
+---------------------------------------------------------------
+
+After accepting:
+
+Status:
+
+EN ROUTE TO PATIENT
+
+Show map.
+
+Show:
+
+Patient location
+
+Ambulance
+
+Recommended route
+
+Alternative route
+
+ETA
+
+Distance
+
+Traffic
+
+Road status
+
+Example:
+
+ETA:
+6 min
+
+Distance:
+2.4 km
+
+Traffic:
+MODERATE
+
+Road:
+CLEAR
+
+Button:
+
+START NAVIGATION
+
+---------------------------------------------------------------
+DRIVER ARRIVED
+---------------------------------------------------------------
+
+Button:
+
+ARRIVED AT SCENE
+
+Then:
+
+PATIENT ONBOARD
+
+---------------------------------------------------------------
+TRANSPORT SCREEN
+---------------------------------------------------------------
+
+After patient onboard:
+
+Show:
+
+TRANSPORTING TO HOSPITAL
+
+Hospital:
+
+City Trauma Center B
+
+Status:
+
+READY
+
+Trauma beds:
+
+3
+
+ICU beds:
+
+2
+
+ETA:
+
+14 min
+
+Predicted:
+
+16 min
+
+Route:
+
+Route B
+
+Traffic:
+
+MODERATE
+
+Button:
+
+START NAVIGATION
+
+---------------------------------------------------------------
+DRIVER REROUTING ALERT
+---------------------------------------------------------------
+
+If road incident occurs:
+
+Display a highly visible alert:
+
+ROUTE UPDATE
+
+Accident detected on Route A
+
+Previous ETA:
+
+12 min
+
+New ETA:
+
+25 min
+
+Alternative Route B:
+
+15 min
+
+Decision:
+
+REROUTING TO ROUTE B
+
+Time saved:
+
+10 min
+
+Button:
+
+CONTINUE ON ROUTE B
+
+---------------------------------------------------------------
+DRIVER HOSPITAL CHANGE
+---------------------------------------------------------------
+
+If hospital becomes full:
+
+Show:
+
+DESTINATION UPDATE
+
+Previous:
+
+Hospital B
+
+Status:
+
+FULL
+
+New:
+
+Hospital C
+
+Status:
+
+READY
+
+New ETA:
+
+18 min
+
+Reason:
+
+"Previous hospital became unavailable."
+
+Button:
+
+ACCEPT NEW DESTINATION
+
+===============================================================
+COMMAND CENTER
+===============================================================
+
+Create:
+
+/command-center
+
+Desktop-first.
+
+Follow the provided image closely.
+
+===============================================================
+COMMAND CENTER HEADER
+===============================================================
+
+Logo:
+
+LIFELINK
+
+Subtitle:
+
+Emergency Command Center
+
+System status:
+
+NORMAL
+
+Current date/time
+
+Operator profile
+
+===============================================================
+TOP KPI CARDS
+===============================================================
+
+Display:
+
+ACTIVE EMERGENCIES
+
+ACTIVE AMBULANCES
+
+AVAILABLE HOSPITALS
+
+ROAD INCIDENTS
+
+Example:
+
+3
+Active Emergencies
+
+5
+Active Ambulances
+
+5
+Available Hospitals
+
+2
+Road Incidents
+
+===============================================================
+LEFT PANEL — EMERGENCY QUEUE
+===============================================================
+
+Show cards.
+
+Each card:
+
+Emergency ID
+
+Time
+
+Severity
+
+Emergency type
+
+Patient
+
+Location
+
+Example:
+
+E-001
+
+10:31 AM
+
+CRITICAL
+
+Road Traffic Accident
+
+Unknown Male
+
+MG Road
+
+Clicking opens emergency details.
+
+===============================================================
+CENTER — LIVE MAP
+===============================================================
+
+This is the most important visual area.
+
+Use Leaflet.
+
+Map should show:
+
+ambulances
+
+patients
+
+hospitals
+
+selected route
+
+alternative routes
+
+traffic
+
+road incidents
+
+blocked roads
+
+hospital status
+
+---------------------------------------------------------------
+MAP LEGEND
+---------------------------------------------------------------
+
+Selected Route
+
+Alternative Route
+
+Traffic Heavy
+
+Traffic Moderate
+
+Traffic Normal
+
+Road Blocked
+
+Hospital Ready
+
+Hospital Full
+
+Ambulance
+
+Emergency
+
+---------------------------------------------------------------
+MAP INTERACTION
+---------------------------------------------------------------
+
+Click ambulance:
+
+show:
+
+AMB-02
+
+Status:
+
+EN ROUTE
+
+Emergency:
+
+E-001
+
+ETA:
+
+15 min
+
+Hospital:
+
+City Trauma Center B
+
+Click hospital:
+
+show:
+
+Hospital name
+
+ER status
+
+Trauma beds
+
+ICU beds
+
+Specialists
+
+Readiness
+
+Click incident:
+
+show:
+
+Incident type
+
+Severity
+
+Road
+
+Impact
+
+===============================================================
+RIGHT PANEL — LIFELINK RECOMMENDATION
+===============================================================
+
+This is the main intelligence panel.
+
+Show:
+
+LIFELINK RECOMMENDATION
+
+Confidence:
+
+91%
+
+Selected Route:
+
+Route B
+
+ETA:
+
+15 min
+
+Distance:
+
+6.8 km
+
+Predicted:
+
+17 min
+
+Status:
+
+BEST
+
+Selected Hospital:
+
+City Trauma Center B
+
+Status:
+
+READY
+
+ETA:
+
+15 min
+
+Readiness:
+
+92%
+
+Trauma beds:
+
+3
+
+ICU beds:
+
+2
+
+---------------------------------------------------------------
+WHY THIS DECISION?
+---------------------------------------------------------------
+
+Show explainable reasons:
+
+✓ Route A has an accident
+✓ Route B is faster
+✓ Hospital B has required trauma capacity
+✓ Hospital A is currently full
+✓ Lower predicted intake delay
+
+Never simply say:
+
+"AI selected Route B."
+
+Always explain the decision.
+
+===============================================================
+ROUTE COMPARISON
+===============================================================
+
+Display cards:
+
+ROUTE A
+
+25 min
+
+5.2 km
+
+Traffic:
+SEVERE
+
+Risk:
+HIGH
+
+Status:
+BLOCKED
+
+
+ROUTE B
+
+15 min
+
+6.8 km
+
+Traffic:
+MODERATE
+
+Risk:
+LOW
+
+Status:
+RECOMMENDED
+
+
+ROUTE C
+
+19 min
+
+8.1 km
+
+Traffic:
+MODERATE
+
+Risk:
+LOW
+
+Status:
+ALTERNATIVE
+
+===============================================================
+HOSPITAL COMPARISON
+===============================================================
+
+Hospital A:
+
+ETA 10 min
+
+Trauma 0
+
+ICU 0
+
+Readiness 18%
+
+FULL
+
+REJECTED
+
+
+Hospital B:
+
+ETA 15 min
+
+Trauma 3
+
+ICU 2
+
+Readiness 92%
+
+READY
+
+SELECTED
+
+
+Hospital C:
+
+ETA 18 min
+
+Trauma 2
+
+ICU 1
+
+Readiness 78%
+
+READY
+
+ALTERNATIVE
+
+===============================================================
+AMBULANCE DETAILS
+===============================================================
+
+Show selected ambulance:
+
+AMB-02
+
+Vehicle number
+
+Current speed
+
+Status
+
+Equipment
+
+Traffic
+
+ETA to patient
+
+ETA to hospital
+
+Current emergency
+
+Current hospital
+
+===============================================================
+TRAFFIC & ROAD INCIDENTS
+===============================================================
+
+Show:
+
+Multi-car Collision
+
+Severe
+
+MG Road
+
+Road blocked
+
+Road Construction
+
+Moderate
+
+Ring Road
+
+Water Logging
+
+Moderate
+
+Lake View Road
+
+Clicking an incident opens details.
+
+===============================================================
+LIVE EVENT TIMELINE
+===============================================================
+
+At bottom.
+
+Example:
+
+10:31:12
+Emergency Received
+
+10:31:14
+AMB-02 Assigned
+
+10:31:18
+Route A Selected
+
+10:31:20
+Hospital B Selected
+
+10:32:07
+Accident Detected
+
+10:32:08
+Rerouting Triggered
+
+10:32:09
+Route B Selected
+
+10:34:10
+Hospital Confirmation
+
+10:45:30
+Estimated Arrival
+
+Events must update in real time.
+
+===============================================================
+LIFELINK DECISION ENGINE
+===============================================================
+
+This is the core backend intelligence.
+
+Create:
+
+LIFELINKDecisionEngine
+
+Input:
+
+emergency
+
+ambulance
+
+candidateRoutes
+
+traffic
+
+roadIncidents
+
+hospitals
+
+hospitalReadiness
+
+Output:
+
+selectedRoute
+
+selectedHospital
+
+eta
+
+predictedEta
+
+routeScore
+
+hospitalScore
+
+overallScore
+
+confidence
+
+reasons
+
+warnings
+
+===============================================================
+ROUTE DECISION
+===============================================================
+
+Route score considers:
+
+ETA
+
+distance
+
+traffic
+
+road risk
+
+road restrictions
+
+traffic trend
+
+predicted ETA
+
+A shorter route should NOT automatically win.
+
+Example:
+
+Route A:
+
+5.2 km
+
+12 min base
+
+25 min traffic-adjusted
+
+HIGH risk
+
+BLOCKED
+
+Route B:
+
+6.8 km
+
+16 min base
+
+15 min traffic-adjusted
+
+LOW risk
+
+CLEAR
+
+LIFELINK chooses B.
+
+===============================================================
+HOSPITAL DECISION
+===============================================================
+
+Hospital score considers:
+
+travel ETA
+
+ER availability
+
+trauma beds
+
+ICU beds
+
+specialists
+
+patient capability requirements
+
+wait time
+
+diversion status
+
+readiness
+
+Hospital distance alone must NOT determine selection.
+
+===============================================================
+TIME-TO-CARE
+===============================================================
+
+Implement:
+
+TIME TO CARE
+
+Concept:
+
+Travel Time
+
++
+
+Traffic Delay
+
++
+
+Hospital Intake Delay
+
++
+
+Capability Penalty
+
+The system should be able to select a hospital
+that is physically farther away if it can provide
+care faster.
+
+Example:
+
+Hospital A:
+
+5 km
+
+10 min travel
+
+ER FULL
+
+0 trauma beds
+
+Hospital B:
+
+7 km
+
+14 min travel
+
+3 trauma beds
+
+ICU available
+
+Trauma specialist available
+
+Hospital B should win.
+
+===============================================================
+HOSPITAL READINESS ENGINE
+===============================================================
+
+Create:
+
+HospitalReadinessEngine
+
+Output:
+
+readinessScore
+
+capacityScore
+
+capabilityScore
+
+specialistScore
+
+intakeScore
+
+diversionScore
+
+warnings
+
+Example:
+
+Hospital B:
+
+Readiness:
+
+92%
+
+===============================================================
+PATIENT REQUIREMENTS
+===============================================================
+
+Emergency contains:
+
+severity
+
+emergencyType
+
+requiredCapabilities
+
+Example:
+
+CRITICAL TRAUMA
+
+Required:
+
+TRAUMA
+ICU
+SURGERY
+
+Hospital must be checked against these requirements.
+
+===============================================================
+DYNAMIC REROUTING
+===============================================================
+
+Create:
+
+RerouteEngine
+
+Do not reroute for tiny fluctuations.
+
+Trigger when:
+
+road blocked
+
+major accident
+
+significant ETA increase
+
+better alternative route
+
+hospital unavailable
+
+hospital readiness drops
+
+patient requirement changes
+
+Example:
+
+Current:
+
+12 min
+
+New:
+
+25 min
+
+Alternative:
+
+15 min
+
+Trigger reroute.
+
+===============================================================
+HOSPITAL SWITCHING
+===============================================================
+
+During transport:
+
+Hospital B can become FULL.
+
+Then:
+
+1. Detect change
+2. Evaluate hospitals
+3. Check patient capability
+4. Calculate routes
+5. Compare time-to-care
+6. Select new hospital
+7. Send pre-alert
+8. Notify driver
+9. Notify user
+10. Update command center
+
+===============================================================
+REAL-TIME SYSTEM
+===============================================================
+
+Use Socket.IO.
+
+All three interfaces must be connected.
+
+Events:
+
+emergency_created
+
+ambulance_assigned
+
+ambulance_location_updated
+
+ambulance_status_changed
+
+route_selected
+
+route_updated
+
+traffic_changed
+
+road_incident_created
+
+reroute_triggered
+
+hospital_selected
+
+hospital_status_changed
+
+hospital_pre_alert
+
+hospital_accepted
+
+hospital_rejected
+
+hospital_changed
+
+patient_onboard
+
+arrival
+
+emergency_completed
+
+system_status_changed
+
+===============================================================
+REAL-TIME LOCATION
+===============================================================
+
+Driver sends location updates.
+
+Example:
+
+every 2–5 seconds during simulation.
+
+Backend broadcasts:
+
+ambulance_location_updated
+
+User sees ambulance move.
+
+Command center sees ambulance move.
+
+Driver sees own location.
+
+All three must remain synchronized.
+
+===============================================================
+DATABASE
+===============================================================
+
+Use PostgreSQL.
+
+Use Drizzle ORM.
+
+Create practical tables.
+
+---------------------------------------------------------------
+USERS
+---------------------------------------------------------------
+
+id
+
+name
+
+email
+
+passwordHash
+
+role
+
+phone
+
+createdAt
+
+---------------------------------------------------------------
+EMERGENCIES
+---------------------------------------------------------------
+
+id
+
+userId
+
+latitude
+
+longitude
+
+severity
+
+emergencyType
+
+requiredCapabilities
+
+priority
+
+status
+
+assignedAmbulanceId
+
+selectedHospitalId
+
+currentRouteId
+
+createdAt
+
+updatedAt
+
+---------------------------------------------------------------
+AMBULANCES
+---------------------------------------------------------------
+
+id
+
+vehicleNumber
+
+driverId
+
+latitude
+
+longitude
+
+speed
+
+heading
+
+status
+
+equipment
+
+currentEmergencyId
+
+currentRouteId
+
+destinationHospitalId
+
+eta
+
+predictedEta
+
+lastUpdated
+
+---------------------------------------------------------------
+HOSPITALS
+---------------------------------------------------------------
+
+id
+
+name
+
+latitude
+
+longitude
+
+emergencyStatus
+
+traumaBeds
+
+icuBeds
+
+ventilators
+
+specialists
+
+currentWaitTime
+
+diversionStatus
+
+readinessStatus
+
+updatedAt
+
+---------------------------------------------------------------
+ROUTES
+---------------------------------------------------------------
+
+id
+
+emergencyId
+
+name
+
+geometry
+
+distance
+
+baseEta
+
+currentEta
+
+predictedEta
+
+trafficLevel
+
+riskLevel
+
+status
+
+createdAt
+
+---------------------------------------------------------------
+ROAD_INCIDENTS
+---------------------------------------------------------------
+
+id
+
+type
+
+latitude
+
+longitude
+
+roadName
+
+severity
+
+description
+
+active
+
+createdAt
+
+expiresAt
+
+---------------------------------------------------------------
+TRAFFIC_CONDITIONS
+---------------------------------------------------------------
+
+id
+
+roadSegment
+
+speed
+
+expectedSpeed
+
+congestionLevel
+
+trend
+
+updatedAt
+
+---------------------------------------------------------------
+DECISIONS
+---------------------------------------------------------------
+
+id
+
+emergencyId
+
+selectedRouteId
+
+selectedHospitalId
+
+routeScore
+
+hospitalScore
+
+overallScore
+
+confidence
+
+reasons
+
+warnings
+
+createdAt
+
+---------------------------------------------------------------
+EVENTS
+---------------------------------------------------------------
+
+id
+
+emergencyId
+
+type
+
+message
+
+metadata
+
+createdAt
+
+---------------------------------------------------------------
+HOSPITAL_PRE_ALERTS
+---------------------------------------------------------------
+
+id
+
+emergencyId
+
+ambulanceId
+
+hospitalId
+
+severity
+
+requirements
+
+eta
+
+status
+
+createdAt
+
+updatedAt
+
+---------------------------------------------------------------
+AMBULANCE_LOCATION_HISTORY
+---------------------------------------------------------------
+
+id
+
+ambulanceId
+
+latitude
+
+longitude
+
+speed
+
+timestamp
+
+===============================================================
+API
+===============================================================
+
+Create REST APIs.
+
+AUTH:
+
+POST /api/auth/register
+
+POST /api/auth/login
+
+GET /api/auth/me
+
+
+USER:
+
+POST /api/emergencies
+
+GET /api/emergencies/:id
+
+GET /api/user/emergencies
+
+
+AMBULANCE:
+
+GET /api/ambulances
+
+GET /api/ambulances/:id
+
+POST /api/ambulances/:id/accept
+
+POST /api/ambulances/:id/decline
+
+POST /api/ambulances/:id/status
+
+POST /api/ambulances/:id/location
+
+POST /api/ambulances/:id/arrived
+
+POST /api/ambulances/:id/patient-onboard
+
+POST /api/ambulances/:id/complete
+
+
+HOSPITAL:
+
+GET /api/hospitals
+
+GET /api/hospitals/:id
+
+POST /api/hospitals/:id/status
+
+POST /api/hospitals/:id/accept
+
+POST /api/hospitals/:id/reject
+
+
+ROUTING:
+
+POST /api/routes/calculate
+
+POST /api/routes/evaluate
+
+
+DECISION:
+
+POST /api/decision/evaluate
+
+GET /api/decision/:emergencyId
+
+
+REROUTING:
+
+POST /api/reroute/evaluate
+
+POST /api/reroute/trigger
+
+
+COMMAND CENTER:
+
+GET /api/dashboard/summary
+
+GET /api/dashboard/emergencies
+
+GET /api/dashboard/ambulances
+
+GET /api/dashboard/hospitals
+
+GET /api/dashboard/incidents
+
+GET /api/dashboard/events
+
+
+SIMULATION:
+
+POST /api/simulation/reset
+
+POST /api/simulation/emergency
+
+POST /api/simulation/traffic
+
+POST /api/simulation/accident
+
+POST /api/simulation/road-block
+
+POST /api/simulation/hospital-full
+
+POST /api/simulation/hospital-ready
+
+POST /api/simulation/run-demo
+
+===============================================================
+SIMULATION ENGINE
+===============================================================
+
+This is REQUIRED for the hackathon.
+
+Create deterministic demo data.
+
+Seed:
+
+5 ambulances
+
+5 hospitals
+
+multiple road incidents
+
+multiple traffic conditions
+
+multiple emergencies
+
+The simulation must use the SAME backend decision
+engine as the real application.
+
+Do NOT create fake frontend-only behavior.
+
+===============================================================
+ONE-CLICK DEMO
+===============================================================
+
+Command center should have:
+
+LIFELINK DEMO
+
+button.
+
+Demo sequence:
+
+STEP 1
+
+Create Critical Trauma Emergency.
+
+STEP 2
+
+Assign AMB-02.
+
+STEP 3
+
+Generate:
+
+Route A = 12 min
+
+Route B = 16 min
+
+Route C = 19 min
+
+Select A.
+
+STEP 4
+
+Hospital:
+
+A:
+FULL
+
+B:
+READY
+Trauma = 3
+ICU = 2
+
+C:
+READY
+Trauma = 2
+
+Select B.
+
+STEP 5
+
+Start ambulance movement.
+
+STEP 6
+
+Inject:
+
+ACCIDENT ON ROUTE A
+
+Route A:
+
+25 min
+
+Route B:
+
+15 min
+
+LIFELINK automatically:
+
+REROUTES A → B
+
+STEP 7
+
+Inject:
+
+HOSPITAL B FULL
+
+LIFELINK automatically:
+
+evaluates Hospital C
+
+selects C
+
+calculates new route
+
+sends pre-alert
+
+notifies driver
+
+notifies user
+
+updates command center
+
+STEP 8
+
+Complete transport.
+
+Show:
+
+ARRIVAL
+
+EMERGENCY COMPLETED
+
+===============================================================
+SIMULATION CONTROLS
+===============================================================
+
+Command center should have a simulation panel.
+
+Buttons:
+
+CREATE EMERGENCY
+
+DISPATCH AMBULANCE
+
+START JOURNEY
+
+INJECT TRAFFIC
+
+ACCIDENT ON ROUTE A
+
+BLOCK ROAD
+
+HOSPITAL B FULL
+
+HOSPITAL C READY
+
+RESET DEMO
+
+RUN FULL DEMO
+
+===============================================================
+MAP IMPLEMENTATION
+===============================================================
+
+Use Leaflet.
+
+Use realistic city map.
+
+For development/demo, use a fixed configurable city
+if exact GPS location is not available.
+
+Map should support:
+
+markers
+
+polylines
+
+route alternatives
+
+traffic overlays
+
+incident markers
+
+hospital markers
+
+ambulance movement
+
+popup cards
+
+zoom
+
+pan
+
+fit bounds
+
+===============================================================
+VISUAL DESIGN
+===============================================================
+
+The uploaded image is the visual reference.
+
+Follow these principles:
+
+DARK EMERGENCY COMMAND CENTER
+
+NAVY / BLACK BACKGROUND
+
+RED FOR CRITICAL EMERGENCY
+
+BLUE FOR ROUTING
+
+GREEN FOR READY / SUCCESS
+
+ORANGE/YELLOW FOR WARNING
+
+WHITE HIGH-CONTRAST TEXT
+
+Clean professional typography.
+
+Use:
+
+dark cards
+
+thin borders
+
+subtle glow
+
+clear status badges
+
+large ETA numbers
+
+map-centric layout
+
+Do not create a generic SaaS dashboard.
+
+It should feel like:
+
+EMERGENCY OPERATIONS SOFTWARE.
+
+===============================================================
+USER MOBILE UI
+===============================================================
+
+The user mobile UI should resemble the FIRST PHONE
+in the provided reference image.
+
+Bottom navigation:
+
+Home
+Tracking
+Updates
+Profile
+
+Home:
+
+Emergency SOS
+
+Emergency types
+
+Location
+
+Send Request
+
+Tracking:
+
+Live ambulance
+
+ETA
+
+Hospital
+
+Status
+
+Updates:
+
+Emergency timeline
+
+Route updates
+
+Hospital updates
+
+Profile:
+
+User information
+
+Emergency history
+
+===============================================================
+DRIVER MOBILE UI
+===============================================================
+
+The driver UI should resemble the SECOND PHONE
+in the provided reference image.
+
+Bottom navigation:
+
+Home
+Navigation
+Patient
+Hospital
+More
+
+Home:
+
+Emergency request
+
+Accept/Decline
+
+Current status
+
+Navigation:
+
+Live map
+
+Route
+
+ETA
+
+Traffic
+
+Rerouting
+
+Patient:
+
+Patient emergency
+
+Severity
+
+Requirements
+
+Hospital:
+
+Selected hospital
+
+Readiness
+
+Beds
+
+ETA
+
+===============================================================
+COMMAND CENTER UI
+===============================================================
+
+The command center should resemble the DESKTOP
+interface in the provided reference image.
+
+Structure:
+
+HEADER
+
+↓
+
+KPI CARDS
+
+↓
+
+LEFT:
+Emergency Queue
+
+CENTER:
+Live Map
+
+RIGHT:
+LIFELINK Recommendation
+
+↓
+
+BOTTOM:
+
+Route Comparison
+
+Hospital Comparison
+
+Traffic & Road Incidents
+
+↓
+
+BOTTOM:
+
+Live Event Timeline
+
+===============================================================
+DECISION TRACE
+===============================================================
+
+For every decision create:
+
+Decision Trace
+
+Example:
+
+INPUTS
+
+Emergency:
+Critical Trauma
+
+Routes:
+A / B / C
+
+Hospitals:
+A / B / C
+
+Route A:
+
+Rejected because:
+
+Accident
+ETA 25 min
+Risk HIGH
+
+Route B:
+
+Selected because:
+
+ETA 15 min
+Risk LOW
+
+Hospital A:
+
+Rejected because:
+
+FULL
+Trauma Beds 0
+
+Hospital B:
+
+Selected because:
+
+Trauma Beds 3
+ICU 2
+Ready
+ETA 15 min
+
+Show this in:
+
+"View Detailed Analysis"
+
+===============================================================
+EXPLAINABILITY
+===============================================================
+
+Never hide the reason.
+
+Every:
+
+route selection
+
+hospital selection
+
+reroute
+
+hospital switch
+
+must generate human-readable reasons.
+
+===============================================================
+NO FAKE AI
+===============================================================
+
+Do not claim deep learning unless actually implemented.
+
+The initial system should use:
+
+rule-based intelligence
+
+weighted scoring
+
+optimization
+
+real-time data
+
+heuristics
+
+This can be described as:
+
+"Explainable AI-assisted Decision Engine"
+
+Do not falsely claim:
+
+neural network
+
+machine learning model
+
+predictive AI
+
+unless actually implemented.
+
+===============================================================
+FAILURE HANDLING
+===============================================================
+
+If routing API fails:
+
+switch to DEMO ROUTING.
+
+If database temporarily fails:
+
+show clear error.
+
+If WebSocket disconnects:
+
+attempt reconnect.
+
+If hospital data unavailable:
+
+show:
+
+DATA UNAVAILABLE
+
+Do not fabricate live data.
+
+If data is simulated:
+
+show:
+
+SIMULATION
+
+===============================================================
+SECURITY
+===============================================================
+
+Use:
+
+password hashing
+
+JWT or secure session
+
+role-based access
+
+input validation
+
+Zod schemas
+
+CORS
+
+rate limiting
+
+safe error messages
+
+environment variables
+
+Never expose secrets.
+
+===============================================================
+ENVIRONMENT
+===============================================================
+
+Create:
+
+.env.example
+
+Include:
+
+DATABASE_URL=
+
+SESSION_SECRET=
+
+ROUTING_API_URL=
+
+MAP_TILE_URL=
+
+Never hardcode secrets.
+
+===============================================================
+TESTING
+===============================================================
+
+Create tests for:
+
+User emergency creation
+
+Ambulance selection
+
+Driver acceptance
+
+Route calculation
+
+Traffic impact
+
+Road closure
+
+Hospital readiness
+
+Hospital capability matching
+
+Hospital selection
+
+Decision engine
+
+Rerouting
+
+Hospital switching
+
+WebSocket events
+
+User tracking
+
+Driver tracking
+
+Command center updates
+
+Complete demo
+
+===============================================================
+END-TO-END TEST
+===============================================================
+
+The following must work:
+
+USER:
+
+Send SOS
+
+↓
+
+BACKEND:
+
+Create emergency
+
+↓
+
+DECISION ENGINE:
+
+Find ambulance
+
+↓
+
+DRIVER:
+
+Receives emergency
+
+↓
+
+DRIVER:
+
+Accepts
+
+↓
+
+ROUTING:
+
+Generate A/B/C
+
+↓
+
+DECISION:
+
+Select route
+
+↓
+
+HOSPITAL ENGINE:
+
+Evaluate hospitals
+
+↓
+
+DECISION:
+
+Select hospital
+
+↓
+
+USER:
+
+Sees ambulance + hospital
+
+↓
+
+DRIVER:
+
+Navigates
+
+↓
+
+COMMAND CENTER:
+
+Sees everything live
+
+↓
+
+SIMULATION:
+
+Accident occurs
+
+↓
+
+DECISION ENGINE:
+
+Recalculate
+
+↓
+
+DRIVER:
+
+Receives reroute
+
+↓
+
+USER:
+
+Sees route update
+
+↓
+
+COMMAND CENTER:
+
+Sees reroute event
+
+↓
+
+SIMULATION:
+
+Hospital becomes FULL
+
+↓
+
+DECISION ENGINE:
+
+Find new hospital
+
+↓
+
+DRIVER:
+
+Receives new destination
+
+↓
+
+USER:
+
+Sees new hospital
+
+↓
+
+COMMAND CENTER:
+
+Sees hospital switch
+
+↓
+
+AMBULANCE:
+
+Arrives
+
+↓
+
+EMERGENCY:
+
+COMPLETED
+
+===============================================================
+PERFORMANCE
+===============================================================
+
+Target:
+
+fast UI
+
+real-time updates
+
+minimal unnecessary database queries
+
+lightweight decision calculations
+
+smooth map
+
+efficient WebSocket communication
+
+Do not over-engineer.
+
+This is a hackathon application.
+
+===============================================================
+RESPONSIVE DESIGN
+===============================================================
+
+USER:
+
+mobile-first
+
+DRIVER:
+
+mobile/tablet-first
+
+COMMAND CENTER:
+
+desktop-first
+
+The desktop command center must still be usable
+on laptop screens.
+
+===============================================================
+IMPORTANT UX RULE
+===============================================================
+
+Each role answers a different question.
+
+USER:
+
+"Where is my ambulance?"
+
+DRIVER:
+
+"Where do I go now?"
+
+OPERATOR:
+
+"What is happening across the emergency network?"
+
+The UI must reflect these three different needs.
+
+===============================================================
+DOCUMENTATION
+===============================================================
+
+Create:
+
+README.md
+
+ARCHITECTURE.md
+
+DATABASE.md
+
+API.md
+
+WEBSOCKET.md
+
+DECISION_ENGINE.md
+
+SIMULATION.md
+
+DEMO_GUIDE.md
+
+LIMITATIONS.md
+
+Include setup instructions.
+
+===============================================================
+DEVELOPMENT ORDER
+===============================================================
+
+Build in this order.
+
+PHASE 1:
+
+Project setup
+
+Frontend
+
+Backend
+
+Database
+
+Authentication
+
+Basic routing
+
+---------------------------------------------------------------
+
+PHASE 2:
+
+User application
+
+Emergency creation
+
+---------------------------------------------------------------
+
+PHASE 3:
+
+Driver application
+
+Dispatch
+
+Accept
+
+Status
+
+GPS
+
+---------------------------------------------------------------
+
+PHASE 4:
+
+Command center
+
+Map
+
+Emergency queue
+
+Ambulance tracking
+
+Hospital tracking
+
+---------------------------------------------------------------
+
+PHASE 5:
+
+Routing engine
+
+Alternative routes
+
+Traffic
+
+Road incidents
+
+---------------------------------------------------------------
+
+PHASE 6:
+
+Hospital intelligence
+
+Readiness
+
+Capabilities
+
+Hospital scoring
+
+---------------------------------------------------------------
+
+PHASE 7:
+
+LIFELINK Decision Engine
+
+Route + Hospital combined decision
+
+---------------------------------------------------------------
+
+PHASE 8:
+
+WebSocket
+
+Real-time synchronization
+
+---------------------------------------------------------------
+
+PHASE 9:
+
+Dynamic rerouting
+
+---------------------------------------------------------------
+
+PHASE 10:
+
+Hospital switching
+
+---------------------------------------------------------------
+
+PHASE 11:
+
+Simulation engine
+
+---------------------------------------------------------------
+
+PHASE 12:
+
+UI polish
+
+---------------------------------------------------------------
+
+PHASE 13:
+
+Testing
+
+---------------------------------------------------------------
+
+PHASE 14:
+
+Full demo verification
+
+===============================================================
+IMPORTANT DEVELOPMENT BEHAVIOR
+===============================================================
+
+DO NOT create the entire application and assume it works.
+
+After each phase:
+
+1. Run the application.
+2. Check frontend.
+3. Check backend.
+4. Check database.
+5. Fix errors.
+6. Continue.
+
+Do not leave broken placeholder functionality.
+
+If a feature cannot use a live external service,
+implement a clearly labelled simulation fallback.
+
+===============================================================
+FINAL ACCEPTANCE CRITERIA
+===============================================================
+
+The project is NOT complete until:
+
+[ ] User can register/login
+
+[ ] Driver can register/login
+
+[ ] Operator can login
+
+[ ] User can send SOS
+
+[ ] Emergency appears in command center
+
+[ ] Available ambulance is selected
+
+[ ] Driver receives emergency
+
+[ ] Driver can accept
+
+[ ] User sees assigned ambulance
+
+[ ] Driver sees patient location
+
+[ ] Map works
+
+[ ] Routes are generated
+
+[ ] Alternative routes are displayed
+
+[ ] Traffic affects ETA
+
+[ ] Road incident affects route
+
+[ ] Hospital readiness works
+
+[ ] Hospital capability matching works
+
+[ ] Best hospital is selected
+
+[ ] Driver sees hospital
+
+[ ] User sees hospital
+
+[ ] Command center sees decision
+
+[ ] WebSocket works
+
+[ ] Ambulance location updates live
+
+[ ] Route A accident triggers rerouting
+
+[ ] Hospital B full triggers hospital switching
+
+[ ] Driver receives new route
+
+[ ] User sees new route
+
+[ ] Command center sees new route
+
+[ ] Hospital pre-alert works
+
+[ ] Complete demo works
+
+[ ] Reset demo works
+
+[ ] No major console errors
+
+[ ] No exposed secrets
+
+[ ] README works
+
+===============================================================
+FINAL DEMO SCENARIO
+===============================================================
+
+Use this exact story for the hackathon.
+
+---------------------------------------------------------------
+
+USER:
+
+Critical Road Accident
+
+Send SOS.
+
+---------------------------------------------------------------
+
+LIFELINK:
+
+Assigns AMB-02.
+
+---------------------------------------------------------------
+
+DRIVER:
+
+Accepts emergency.
+
+---------------------------------------------------------------
+
+ROUTES:
+
+A = 12 min
+B = 16 min
+C = 19 min
+
+LIFELINK selects A.
+
+---------------------------------------------------------------
+
+HOSPITALS:
+
+A = FULL
+B = READY
+C = READY
+
+LIFELINK selects B.
+
+---------------------------------------------------------------
+
+DRIVER:
+
+Starts transport.
+
+---------------------------------------------------------------
+
+ACCIDENT:
+
+Route A becomes blocked.
+
+A = 25 min
+B = 15 min
+
+---------------------------------------------------------------
+
+LIFELINK:
+
+REROUTING
+
+A → B
+
+---------------------------------------------------------------
+
+DRIVER:
+
+Receives new route.
+
+---------------------------------------------------------------
+
+USER:
+
+Sees route update.
+
+---------------------------------------------------------------
+
+COMMAND CENTER:
+
+Shows:
+
+ACCIDENT DETECTED
+
+REROUTING
+
+ROUTE B SELECTED
+
+---------------------------------------------------------------
+
+SECOND EVENT:
+
+Hospital B becomes FULL.
+
+---------------------------------------------------------------
+
+LIFELINK:
+
+Re-evaluates hospitals.
+
+Hospital C becomes best feasible destination.
+
+---------------------------------------------------------------
+
+DRIVER:
+
+Receives:
+
+DESTINATION UPDATED
+
+Hospital C
+
+---------------------------------------------------------------
+
+USER:
+
+Sees:
+
+New Hospital
+
+New ETA
+
+---------------------------------------------------------------
+
+COMMAND CENTER:
+
+Shows hospital switch.
+
+---------------------------------------------------------------
+
+AMBULANCE:
+
+Arrives at Hospital C.
+
+---------------------------------------------------------------
+
+SYSTEM:
+
+ARRIVAL
+
+EMERGENCY COMPLETED
+
+===============================================================
+FINAL PRODUCT PRINCIPLE
+===============================================================
+
+The application must clearly communicate:
+
+ROAD INTELLIGENCE
+
++
+
+MEDICAL INTELLIGENCE
+
++
+
+PATIENT REQUIREMENTS
+
++
+
+AMBULANCE STATE
+
+↓
+
+LIFELINK DECISION ENGINE
+
+↓
+
+BEST ROUTE
+
++
+
+BEST HOSPITAL
+
+↓
+
+CONTINUOUS MONITORING
+
+↓
+
+DYNAMIC REROUTING
+
+===============================================================
+MOST IMPORTANT FINAL INSTRUCTION
+===============================================================
+
+Do not build a static mockup.
+
+Do not only build frontend screens.
+
+Do not create fake buttons.
+
+Do not create disconnected pages.
+
+Build the actual:
+
+FRONTEND
+
++
+
+BACKEND
+
++
+
+DATABASE
+
++
+
+WEBSOCKET
+
++
+
+ROUTING
+
++
+
+HOSPITAL INTELLIGENCE
+
++
+
+DECISION ENGINE
+
++
+
+SIMULATION
+
+as ONE connected working application.
+
+The uploaded LIFELINK reference image is the visual
+and role-based UI reference.
+
+Match its structure and information hierarchy,
+but implement the application from scratch.
+
+Start building now.
+
+Do not stop at planning.
+
+Create the files.
+
+Install dependencies.
+
+Create the database.
+
+Implement APIs.
+
+Implement WebSockets.
+
+Implement frontend.
+
+Run the application.
+
+Test the complete flow.
+
+Fix errors.
+
+Then report:
+
+"LIFELINK FULL-STACK MVP COMPLETE"
+
+and provide:
+
+1. Project structure
+2. Database schema
+3. API list
+4. WebSocket events
+5. Decision engine explanation
+6. How to run
+7. Demo instructions
+8. Known limitations
+===============================================================
+```
+
+### 🔥 Most important change from our previous prompt
+
+This one **image-based role architecture ni exact ga lock chestundi**:
+
+**User App → Driver App → Command Center**
+
+And all three are connected to:
+
+**Backend → Decision Engine → Database → WebSocket**
+
+So Replit accidentally **one dashboard for everyone** build cheyyakunda, three separate experiences build chestundi.
+
+The **driver doesn't manually choose the best route/hospital**. LIFELINK backend decides it and driver gets the actionable instruction. The command center gets the full reasoning and city-wide picture. The user gets only the information they actually need.
+
+Your uploaded reference image already shows exactly this hierarchy, and the prompt above turns that visual into an actual full-stack specification.

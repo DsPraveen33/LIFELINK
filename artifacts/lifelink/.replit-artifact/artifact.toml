@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "LIFELINK Emergency Response"
+description = "A connected emergency response platform with separate patient, ambulance driver, and command center experiences sharing live dispatch, routing, hospital readiness, and event data."
+version = "1.0.0"
+id = "artifacts/lifelink"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20879
+
+[services.development]
+run = "pnpm --filter @workspace/lifelink run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/lifelink", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/lifelink/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20879"
+BASE_PATH = "/"

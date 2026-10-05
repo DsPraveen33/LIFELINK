@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: LIFELINK emergency response, dispatch, routing, hospital readiness, and demo simulation API.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: emergencies
+  - name: ambulances
+  - name: hospitals
+  - name: routing
+  - name: dashboard
+  - name: simulation
 paths:
   /healthz:
     get:
@@ -24,13 +30,668 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [auth]
+      summary: Register a LIFELINK account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountUser"
+        "400":
+          description: Invalid account data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [auth]
+      summary: Sign in to LIFELINK
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountUser"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/demo-login:
+    post:
+      operationId: demoLogin
+      tags: [auth]
+      summary: Sign in to the local operator simulation account
+      responses:
+        "200":
+          description: Local demo operator session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountUser"
+        "404":
+          description: Demo access is disabled or not seeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current session account
+      responses:
+        "200":
+          description: Current account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountUser"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      tags: [auth]
+      summary: End the current session
+      responses:
+        "204":
+          description: Signed out
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get command center live overview metrics
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /dashboard/events:
+    get:
+      operationId: listDashboardEvents
+      tags: [dashboard]
+      summary: Get the recent emergency event timeline
+      responses:
+        "200":
+          description: Recent events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LifelinkEvent"
+  /emergencies:
+    get:
+      operationId: listEmergencies
+      tags: [emergencies]
+      summary: List active and recent emergencies
+      responses:
+        "200":
+          description: Emergency list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Emergency"
+    post:
+      operationId: createEmergency
+      tags: [emergencies]
+      summary: Create an SOS emergency and dispatch a suitable ambulance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmergencyInput"
+      responses:
+        "201":
+          description: Emergency created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emergency"
+        "400":
+          description: Invalid emergency
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /emergencies/{id}:
+    get:
+      operationId: getEmergency
+      tags: [emergencies]
+      summary: Get emergency details
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Emergency detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emergency"
+        "404":
+          description: Emergency not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /emergencies/{id}/decision:
+    get:
+      operationId: getEmergencyDecision
+      tags: [routing]
+      summary: Get the current route and hospital recommendation
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Decision explanation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+        "404":
+          description: Decision not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /ambulances:
+    get:
+      operationId: listAmbulances
+      tags: [ambulances]
+      summary: List ambulances and current availability
+      responses:
+        "200":
+          description: Ambulance fleet
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ambulance"
+  /ambulances/{id}/accept:
+    post:
+      operationId: acceptEmergency
+      tags: [ambulances]
+      summary: Accept an emergency dispatch
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AmbulanceEmergencyInput"
+      responses:
+        "200":
+          description: Dispatch accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ambulance"
+  /ambulances/{id}/decline:
+    post:
+      operationId: declineEmergency
+      tags: [ambulances]
+      summary: Decline an emergency dispatch
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AmbulanceEmergencyInput"
+      responses:
+        "200":
+          description: Dispatch declined and reassigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emergency"
+  /ambulances/{id}/status:
+    post:
+      operationId: updateAmbulanceStatus
+      tags: [ambulances]
+      summary: Update ambulance service status
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AmbulanceStatusInput"
+      responses:
+        "200":
+          description: Updated ambulance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ambulance"
+  /ambulances/{id}/location:
+    post:
+      operationId: updateAmbulanceLocation
+      tags: [ambulances]
+      summary: Send an ambulance GPS update
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocationInput"
+      responses:
+        "200":
+          description: Updated ambulance location
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ambulance"
+  /ambulances/{id}/arrived:
+    post:
+      operationId: markArrivedAtScene
+      tags: [ambulances]
+      summary: Mark arrival at the emergency scene
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AmbulanceEmergencyInput"
+      responses:
+        "200":
+          description: Updated ambulance and emergency
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emergency"
+  /ambulances/{id}/patient-onboard:
+    post:
+      operationId: markPatientOnboard
+      tags: [ambulances]
+      summary: Mark patient onboard and begin hospital transport
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AmbulanceEmergencyInput"
+      responses:
+        "200":
+          description: Updated emergency
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emergency"
+  /ambulances/{id}/complete:
+    post:
+      operationId: completeEmergency
+      tags: [ambulances]
+      summary: Complete a hospital handoff
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AmbulanceEmergencyInput"
+      responses:
+        "200":
+          description: Completed emergency
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emergency"
+  /hospitals:
+    get:
+      operationId: listHospitals
+      tags: [hospitals]
+      summary: List hospitals and emergency readiness
+      responses:
+        "200":
+          description: Hospital list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Hospital"
+  /hospitals/{id}/status:
+    post:
+      operationId: updateHospitalStatus
+      tags: [hospitals]
+      summary: Update hospital readiness and capacity
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HospitalStatusInput"
+      responses:
+        "200":
+          description: Updated hospital
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hospital"
+  /routes/calculate:
+    post:
+      operationId: calculateRoutes
+      tags: [routing]
+      summary: Calculate traffic-aware route alternatives
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouteRequest"
+      responses:
+        "200":
+          description: Ranked route alternatives
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RouteOption"
+  /simulation/action:
+    post:
+      operationId: runSimulationAction
+      tags: [simulation]
+      summary: Apply a simulation event through the real dispatch decision engine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulationActionInput"
+      responses:
+        "200":
+          description: Simulation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResult"
+  /simulation/run-demo:
+    post:
+      operationId: runFullDemo
+      tags: [simulation]
+      summary: Run the complete SOS, dispatch, reroute, and hospital-switch demo
+      responses:
+        "200":
+          description: Complete demo snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResult"
+  /simulation/reset:
+    post:
+      operationId: resetSimulation
+      tags: [simulation]
+      summary: Reset sample dispatch data to the initial demo state
+      responses:
+        "200":
+          description: Reset result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResult"
 components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    AccountUser:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [USER, DRIVER, OPERATOR] }
+        phone: { type: ["string", "null"] }
+      required: [id, name, email, role, phone]
+    RegisterInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 128 }
+        role: { type: string, enum: [USER, DRIVER] }
+        phone: { type: ["string", "null"] }
+      required: [name, email, password, role]
+    LoginInput:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
+      required: [email, password]
+    Emergency:
+      type: object
+      properties:
+        id: { type: integer }
+        patientName: { type: string }
+        emergencyType: { type: string }
+        severity: { type: string, enum: [CRITICAL, HIGH, MEDIUM, LOW] }
+        status: { type: string, enum: [NEW, DISPATCHED, ACCEPTED, EN_ROUTE, ON_SCENE, TRANSPORTING, COMPLETED, CANCELLED] }
+        latitude: { type: number }
+        longitude: { type: number }
+        locationLabel: { type: string }
+        requiredCapabilities:
+          type: array
+          items: { type: string }
+        assignedAmbulanceId: { type: ["integer", "null"] }
+        selectedHospitalId: { type: ["integer", "null"] }
+        etaMinutes: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, patientName, emergencyType, severity, status, latitude, longitude, locationLabel, requiredCapabilities, assignedAmbulanceId, selectedHospitalId, etaMinutes, createdAt, updatedAt]
+    EmergencyInput:
+      type: object
+      properties:
+        patientName: { type: string, minLength: 1, maxLength: 100 }
+        emergencyType: { type: string, minLength: 1, maxLength: 80 }
+        severity: { type: string, enum: [CRITICAL, HIGH, MEDIUM, LOW] }
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        locationLabel: { type: string, minLength: 1, maxLength: 200 }
+        requiredCapabilities:
+          type: array
+          items: { type: string }
+      required: [patientName, emergencyType, severity, latitude, longitude, locationLabel, requiredCapabilities]
+    Ambulance:
+      type: object
+      properties:
+        id: { type: integer }
+        callSign: { type: string }
+        vehicleNumber: { type: string }
+        driverName: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        status: { type: string, enum: [AVAILABLE, EN_ROUTE, ON_SCENE, TRANSPORTING, OFFLINE] }
+        equipment:
+          type: array
+          items: { type: string }
+        currentEmergencyId: { type: ["integer", "null"] }
+        destinationHospitalId: { type: ["integer", "null"] }
+        etaMinutes: { type: ["integer", "null"] }
+        lastUpdated: { type: string, format: date-time }
+      required: [id, callSign, vehicleNumber, driverName, latitude, longitude, status, equipment, currentEmergencyId, destinationHospitalId, etaMinutes, lastUpdated]
+    AmbulanceEmergencyInput:
+      type: object
+      properties:
+        emergencyId: { type: integer }
+      required: [emergencyId]
+    AmbulanceStatusInput:
+      type: object
+      properties:
+        status: { type: string, enum: [AVAILABLE, EN_ROUTE, ON_SCENE, TRANSPORTING, OFFLINE] }
+      required: [status]
+    LocationInput:
+      type: object
+      properties:
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        speedKph: { type: number, minimum: 0, maximum: 250 }
+        heading: { type: number, minimum: 0, maximum: 360 }
+      required: [latitude, longitude, speedKph, heading]
+    Hospital:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        address: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        readinessStatus: { type: string, enum: [READY, BUSY, FULL] }
+        emergencyStatus: { type: string, enum: [ACCEPTING, LIMITED, DIVERTING] }
+        traumaBeds: { type: integer }
+        icuBeds: { type: integer }
+        ventilators: { type: integer }
+        capabilities:
+          type: array
+          items: { type: string }
+        waitMinutes: { type: integer }
+        updatedAt: { type: string, format: date-time }
+      required: [id, name, address, latitude, longitude, readinessStatus, emergencyStatus, traumaBeds, icuBeds, ventilators, capabilities, waitMinutes, updatedAt]
+    HospitalStatusInput:
+      type: object
+      properties:
+        readinessStatus: { type: string, enum: [READY, BUSY, FULL] }
+        emergencyStatus: { type: string, enum: [ACCEPTING, LIMITED, DIVERTING] }
+        traumaBeds: { type: integer, minimum: 0 }
+        icuBeds: { type: integer, minimum: 0 }
+        ventilators: { type: integer, minimum: 0 }
+        waitMinutes: { type: integer, minimum: 0 }
+      required: [readinessStatus, emergencyStatus, traumaBeds, icuBeds, ventilators, waitMinutes]
+    RouteRequest:
+      type: object
+      properties:
+        emergencyId: { type: integer }
+      required: [emergencyId]
+    RouteOption:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        distanceKm: { type: number }
+        etaMinutes: { type: integer }
+        predictedEtaMinutes: { type: integer }
+        trafficLevel: { type: string, enum: [LIGHT, MODERATE, HEAVY] }
+        riskLevel: { type: string, enum: [LOW, MEDIUM, HIGH] }
+        status: { type: string, enum: [RECOMMENDED, ALTERNATIVE, BLOCKED] }
+        points:
+          type: array
+          items:
+            type: array
+            items: { type: number }
+        reason: { type: string }
+      required: [id, name, distanceKm, etaMinutes, predictedEtaMinutes, trafficLevel, riskLevel, status, points, reason]
+    Decision:
+      type: object
+      properties:
+        emergencyId: { type: integer }
+        selectedRoute: { $ref: "#/components/schemas/RouteOption" }
+        selectedHospitalId: { type: ["integer", "null"] }
+        selectedHospitalName: { type: ["string", "null"] }
+        confidence: { type: integer }
+        reasons:
+          type: array
+          items: { type: string }
+        warnings:
+          type: array
+          items: { type: string }
+        updatedAt: { type: string, format: date-time }
+      required: [emergencyId, selectedRoute, selectedHospitalId, selectedHospitalName, confidence, reasons, warnings, updatedAt]
+    LifelinkEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        emergencyId: { type: ["integer", "null"] }
+        type: { type: string }
+        message: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, emergencyId, type, message, createdAt]
+    DashboardSummary:
+      type: object
+      properties:
+        activeEmergencies: { type: integer }
+        availableAmbulances: { type: integer }
+        totalAmbulances: { type: integer }
+        readyHospitals: { type: integer }
+        totalHospitals: { type: integer }
+        averageResponseMinutes: { type: integer }
+        activeIncidents: { type: integer }
+        updatedAt: { type: string, format: date-time }
+      required: [activeEmergencies, availableAmbulances, totalAmbulances, readyHospitals, totalHospitals, averageResponseMinutes, activeIncidents, updatedAt]
+    SimulationActionInput:
+      type: object
+      properties:
+        action: { type: string, enum: [CREATE_EMERGENCY, DISPATCH_AMBULANCE, START_JOURNEY, INJECT_TRAFFIC, ACCIDENT_ON_ROUTE_A, BLOCK_ROAD, HOSPITAL_B_FULL, HOSPITAL_C_READY, ARRIVE_AT_HOSPITAL] }
+        emergencyId: { type: ["integer", "null"] }
+      required: [action]
+    SimulationResult:
+      type: object
+      properties:
+        message: { type: string }
+        emergencyId: { type: ["integer", "null"] }
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/LifelinkEvent"
+      required: [message, emergencyId, events]
 
