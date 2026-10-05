@@ -50,6 +50,17 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
+    sourcemap: false,
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-maps': ['leaflet', 'react-leaflet'],
+          'vendor-query': ['@tanstack/react-query', 'wouter'],
+        },
+      },
+    },
   },
   server: {
     port,

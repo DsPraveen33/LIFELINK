@@ -16,6 +16,9 @@ COPY scripts ./scripts
 # Install dependencies for Linux environment
 RUN pnpm install --no-frozen-lockfile
 
+# Limit memory to 384MB so it comfortably fits Render 512MB free tier
+ENV NODE_OPTIONS="--max-old-space-size=384"
+
 # Build frontend and backend
 RUN pnpm run build
 
